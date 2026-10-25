@@ -1,12 +1,14 @@
 # Forge: Project Guide and Rules for AI Agents
 
-Forge is the owner's Monday assistant (`~/Developer/monday`) rebuilt on open-weight models: a voice-controlled
-assistant for macOS that sees the screen and operates the computer, powered by Gemma 4 running on the Mac through
-one harness that makes a small model reliable (constrained decoding, repair, planning, a policy gate).
+Forge is two products on one harness, powered by Gemma 4 running on the Mac:
+- **Forge Studio**: "a proper Claude Code / Codex for Ollama". A desktop app with two modes: **Code** (a project
+  folder: explore, edit with diffs, run commands, keep going until the tests pass) and **Computer** (Mac tasks:
+  apps, web, files, reminders, the screen agent). It looks and feels like the Claude Code desktop app.
+- **The voice agent**: the owner's Monday assistant (`~/Developer/monday`) on open weights: "Hey Forge", Monday's
+  HUD, listening rules, voice and personality. **It is opt-in** ("Continue with voice agent" or `forge voice`) and
+  never runs inside Studio on its own or interrupts a Studio task.
 
-**Any AI coding agent must read this file before changing code and follow section 9.** The owner's standing
-decisions: Forge behaves, sounds and looks exactly like Monday (its `AGENTS.md` sections 5-7 are the reference),
-the brain is local Gemma, the HUD is Monday's `hud.html` unchanged, and the name is "Forge" ("Hey Forge").
+**Any AI coding agent must read this file before changing code and follow section 10.**
 
 ---
 
@@ -67,7 +69,9 @@ Automation for Reminders, Calendar, Notes and the browser.
 | `src/forge/assistant/voice.py`, `voiceprint.py`, `enroll.py` | Monday's listening engine, Kokoro voice, speaker lock |
 | `src/forge/assistant/hud_native.py` | Monday's HUD host: transparent click-through window, 60 fps `H.*` feed, key monitor |
 | `src/forge/assistant/static/hud.html` | **Monday's HUD, byte for byte** (only the title and one demo caption say Forge) |
-| `src/forge/assistant/static/` (other files) | Forge Studio: chat, Model hub, Skills, Evals, Train, Settings |
+| `src/forge/assistant/static/` (other files) | Forge Studio (`index.html`, `style.css`, `app.js`, `pages.js`, `md.js`): sessions, Code / Computer, activity feed, diffs, permissions, Models, Skills, Evals, Train, Settings |
+| `src/forge/tools/code.py` | Code mode: workspace tools, orientation, finish check, edit previews |
+| `docs/studio-protocol.md` | the Studio ↔ server contract (REST + WebSocket events) |
 | `src/forge/assistant/server.py` | 127.0.0.1 server: Studio, REST API, one event WebSocket |
 | `src/forge/tools/` | device tools: apps, web, research, files, Apple apps and timers, system, media, senses, screen, AX |
 | `skills/` | Agent Skills (agentskills.io), loaded on demand |
@@ -75,7 +79,24 @@ Automation for Reminders, Calendar, Notes and the browser.
 
 ---
 
-## 4. Listening, personality and voice
+## 4. Code mode (Studio)
+
+`tools/code.py`: `list_files`, `search_code` (ripgrep), `read_file` (numbered), `edit_file` (exact, unique
+old_text; indentation of copied text is matched), `write_file`, `run_command` (zsh login shell in the project, no
+colours, timeout). Paths cannot leave the project. Before the first step the model gets the file list, git status
+and a test command that is checked to work (`orientation`). The loop (`ChatAgent`, up to `FORGE_CODE_MAX_STEPS`=40)
+will not finish while the last command failed with no fix since, after editing without re-checking, or after only
+describing a requested change (`finish_check`, two push-backs). A repeated call only counts while nothing changed;
+the third gets a warning, the fourth stops the run. The policy gate asks before edits and commands; plainly
+read-only commands run; destructive ones (`rm -rf ~`, `sudo`, `curl | sh`, force push) are blocked. "Always allow"
+is remembered per session for that command's program (`$ npm test`) or for all edits.
+
+Measured on gemma4:e4b: fixed a failing test (7 steps, 41 s); added `median` with 3 tests (all pass); through the
+real UI, added `Cart.discount()` with a test and ran the tests (49 s, exit 0).
+
+---
+
+## 5. Listening, personality and voice
 
 Monday's rules, unchanged (see `monday/AGENTS.md` sections 5 and 6 for the reasons):
 - A command needs "Hey Forge", a double clap, or the conversation window (`FORGE_CONVERSE_S`, 8 s after a reply,
@@ -87,37 +108,42 @@ Monday's rules, unchanged (see `monday/AGENTS.md` sections 5 and 6 for the reaso
   Forge sends its own keys (`runtime.self_typing`). Right Option held is push-to-talk.
 - Personality: cute, cheerful, bubbly and warm, smart like JARVIS, never sarcastic. Spoken replies are 1-2 short
   sentences, no markdown, no lists, no emojis. It lives in `harness/chat.py` (`ANSWER`, `STYLE["voice"]`).
-- Voice: Kokoro on device, `af_bella*0.6+af_sky*0.4` at 1.12. Speech: Whisper large-v3-turbo (small.en only on
-  8 GB Macs or with `FORGE_STT_MODEL=fast`).
+- Voice: Kokoro (82M, on device), `af_bella*0.6+af_sky*0.4` at 1.12. Speech: Whisper small.en on the Apple GPU
+  (~0.2 s a command; the owner wants light and fast). `FORGE_STT_MODEL=accurate` picks large-v3-turbo.
 
 ---
 
-## 5. Look
+## 6. Look
 
 - **HUD**: `static/hud.html` is Monday's file. Its design system is `monday/AGENTS.md` section 7 (glass orb and
   wisps, light rising from the orb, captions, Dynamic Island, the doodle cursor). Never edit it except to keep it
   identical to Monday's. The window must stay hidden from screenshots and click-through.
-- **Studio**: Monday's design language: dark glass surfaces, blue `#0a6cff`, cyan `#5ad8ff`, white, orange
-  `#ff8a00`, red `#ff2d2d`, a touch of green `#2fe07a`; **no purple or violet**, no rainbow or conic borders,
-  system font, no external CDNs (works offline).
+- **Studio**: the Claude Code desktop feel: calm neutral light and dark themes, one accent (blue `#0a6cff`),
+  green / red / orange only for diffs and status; compact activity rows ("Read src/app.py", "Edit +4 −0",
+  "Run $ pytest exit 0") that expand to diffs and output, a live todo plan, inline permission prompts
+  (Allow once / Always allow in this session / Deny), a status line ("✻ Working… 12s · Esc to interrupt").
+  No gradients, glows, glass or orbs in Studio; no purple; system font plus monospace; no CDNs (works offline).
+  The protocol is `docs/studio-protocol.md`; `#/demo` replays a scripted session.
 - Forge's cursor is drawn in the HUD; the user's real cursor is never hidden or recoloured, and every click
   borrows it and puts it back exactly (`tools/screen.py` `borrow`).
 
 ---
 
-## 6. Hardware profiles
+## 7. Hardware profiles
 
 | Memory (Apple Silicon) | Chat and voice | Screen agent | Context | Whisper |
 |---|---|---|---|---|
 | 8 GB | gemma4:e2b | gemma4:e2b | 8K | small.en |
-| 16 GB | gemma4:e4b | gemma4:e4b | 16K | large-v3-turbo |
-| 24-36 GB | gemma4:e4b | gemma4:12b-it-qat | 32K | large-v3-turbo |
-| 48 GB+ | gemma4:e4b | gemma4:26b-a4b-it-qat | 32K | large-v3-turbo |
+| 16 GB | gemma4:e4b | gemma4:e4b | 16K | small.en |
+| 24-36 GB | gemma4:e4b | gemma4:e4b | 32K | small.en |
+| 48 GB+ | gemma4:e4b | gemma4:e4b | 32K | small.en |
+
+Light by default (owner: no heavy models); 12B QAT and 26B A4B are optional picks in the Model hub.
 | no Apple GPU | gemma4:e2b | gemma4:e2b | 8K | faster-whisper small.en |
 
 ---
 
-## 7. Configuration
+## 8. Configuration
 
 All settings are in `.env.example`, with their defaults and meaning. Routes: `FORGE_ROUTE=local` (Ollama),
 `openai` (`FORGE_OPENAI_URL`, `FORGE_OPENAI_MODEL`: Ollama `/v1`, llama.cpp, LM Studio, MLX) or `aistudio`.
@@ -126,24 +152,25 @@ Files Forge writes: `~/.forge/` (settings, chats, traces, uploads, models, voice
 
 ---
 
-## 8. Measured behaviour (keep these numbers true)
+## 9. Measured behaviour (keep these numbers true)
 
 | | Result |
 |---|---|
 | Compound requests, gemma4:e4b, 8 tasks | 8/8 with planning (5/8 before) |
 | LOCAL intents | instant; weather < 1 s |
 | Warm harness answer | first words in ~1.6-2.4 s |
-| Whisper turbo on an M4 | ~0.8 s a command |
+| Whisper small.en on an M4 | ~0.2 s a command (turbo ~0.8 s) |
 | Noisy room (fan at -36 / -30 dB) | commands with the wake word route; noise and strangers don't (`tests/test_voice.py`) |
 
 ---
 
-## 9. Rules for AI agents (mandatory)
+## 10. Rules for AI agents (mandatory)
 
 ### Never change without the owner asking explicitly
-1. The HUD (`static/hud.html`) and the Studio design language (section 5). No purple. No new HUD widgets.
-2. The voice and personality (section 4): Kokoro blend and speed, the tone of `ANSWER`.
-3. The listening behaviour (section 4): wake phrases, clap, chime, conversation window, echo filter, loop guard,
+1. The HUD (`static/hud.html`) and the Studio design language (section 6). No purple. No new HUD widgets.
+   Studio and the voice agent stay separate: separate task slots, voice never starts by itself.
+2. The voice and personality (section 5): Kokoro blend and speed, the tone of `ANSWER`.
+3. The listening behaviour (section 5): wake phrases, clap, chime, conversation window, echo filter, loop guard,
    barge-in, Esc and Space.
 4. The brain: Gemma through the harness. Do not add a cloud provider as the default.
 5. The routing order: `brain.Router` LOCAL → router patterns → harness (plan → decide → tools / screen agent).
@@ -175,11 +202,15 @@ Files Forge writes: `~/.forge/` (settings, chats, traces, uploads, models, voice
 
 ---
 
-## 10. Decisions log
+## 11. Decisions log
 
 | Decision | Reason |
 |---|---|
 | Forge = Monday on Gemma | owner: "make sure Monday has been copied exactly", on open weights for the hackathon |
+| Studio = Claude Code desktop, Code + Computer | owner rejected a glassy chat clone: "I want a proper Claude Code desktop like feel" |
+| Voice agent opt-in, own task slot | voice mode always on inside Studio cancelled typed tasks ("it is stopping every time") |
+| Whisper small.en default | owner: light and fast, no heavy models; Monday's filters (VAD, confidence) handle the noise |
+| Code-mode orientation + finish_check | without them Gemma ran `test`, invented files, or described a fix instead of making it |
 | Monday's listening engine, Whisper turbo | a thinner listener with small.en answered room noise as commands ("11.", "I'm sorry") |
 | Planning before deciding | small models answered after the first half of "X and Y"; 5/8 → 8/8 |
 | Compound requests skip LOCAL and router | "weather in London and save it as a note" was answered with the weather only |

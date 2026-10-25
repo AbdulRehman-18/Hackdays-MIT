@@ -534,7 +534,7 @@ class Session:
             elif kind == "tool_result":
                 for s in steps:
                     if s["id"] == d["id"]:
-                        s.update(result=d["result"], status=d["status"], ms=d.get("ms"))
+                        s.update({k: v for k, v in d.items() if k != "id"})  # result, status, ms, diff, exit_code...
                 self.set_state("thinking")
             elif kind == "answer_start":
                 self.set_state("thinking")

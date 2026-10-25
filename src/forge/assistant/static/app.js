@@ -10,7 +10,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const gb = (n) => (n ? `${(n / 1e9).toFixed(1)} GB` : "");
 const kfmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n || 0));
 const base = (p) => String(p || "").replace(/\/+$/, "").split("/").pop() || p;
-const tilde = (p) => String(p || "").replace(/^\/Users\/[^/]+/, "~");
+const tilde = (p) => String(p || "").replace(/^(\/private)?\/Users\/[^/]+/, "~");
+const shortPath = (p) => { const t = tilde(p).split("/"); return t.length > 4 ? `${t[0]}/…/${t.slice(-2).join("/")}` : t.join("/"); };
 
 async function api(path, opts = {}) {
   const init = { method: opts.method || "GET", headers: {} };
@@ -270,7 +271,7 @@ function setTop(chat) {
   w.hidden = !(chat && mode === "code" && chat.workspace);
   if (!w.hidden) {
     const br = S.branches[chat.workspace];
-    w.innerHTML = `${icon("folder")}<span class="p" title="${esc(chat.workspace)}">${esc(tilde(chat.workspace))}</span>${br ? `${icon("branch")}<span>${esc(br)}</span>` : ""}`;
+    w.innerHTML = `${icon("folder")}<span class="p" title="${esc(chat.workspace)}">${esc(shortPath(chat.workspace))}</span>${br ? `${icon("branch")}<span>${esc(br)}</span>` : ""}`;
     if (br === undefined) loadBranch(chat.workspace);
   }
 }
@@ -489,15 +490,15 @@ function parseDiff(text) {
     if (line.startsWith("\\")) continue;
     if (line.startsWith("+")) { rows.push({ t: "add", n: n++, s: line.slice(1) }); add++; }
     else if (line.startsWith("-")) { rows.push({ t: "del", n: o++, s: line.slice(1) }); del++; }
-    else if (rows.length) { rows.push({ t: "ctx", n: n, s: line.slice(1) }); o++; n++; }
+    else if (rows.length) { rows.push({ t: "same", n: n, s: line.slice(1) }); o++; n++; }
   }
-  while (rows.length && rows[rows.length - 1].t === "ctx" && !rows[rows.length - 1].s) rows.pop();
+  while (rows.length && rows[rows.length - 1].t === "same" && !rows[rows.length - 1].s) rows.pop();
   return { rows, add, del, path };
 }
 function renderDiff(text, path) {
   const d = parseDiff(text);
   if (!d.rows.length) return `<pre class="out">${esc(text)}</pre>`;
-  const sign = { add: "+", del: "−", ctx: " " };
+  const sign = { add: "+", del: "−", same: " " };
   return `<div class="diff"><div class="dh">${icon("file")}<span class="mono">${esc(path || d.path)}</span><span class="grow"></span><span class="plus">+${d.add}</span><span class="minus">−${d.del}</span></div>
     <div class="dscroll"><table>${d.rows.map((r) => r.t === "hunk" ? `<tr class="hunk"><td colspan="3">${esc(r.s)}</td></tr>`
       : `<tr class="${r.t}"><td class="n">${r.n}</td><td class="s">${sign[r.t]}</td><td>${esc(r.s)}</td></tr>`).join("")}</table></div></div>`;
@@ -563,7 +564,7 @@ class Turn {
     if (s.repaired) meta += `<span title="The first reply was malformed and Forge repaired it">repaired</span>`;
     const open = !!s._open;
     el.classList.toggle("open", open);
-    el.innerHTML = `<button class="row" type="button" aria-expanded="${open}"><span class="sd ${esc(s.status)}" aria-label="${esc(s.status)}"></span><span class="verb">${esc(verb)}</span><span class="obj">${esc(obj)}</span><span class="meta">${meta}${icon("chev-r", "chev")}</span></button>
+    el.innerHTML = `<button class="row" type="button" aria-expanded="${open}"><span class="sd st-${esc(s.status)}" aria-label="${esc(s.status)}"></span><span class="verb">${esc(verb)}</span><span class="obj">${esc(obj)}</span><span class="meta">${meta}${icon("chev-r", "chev")}</span></button>
       ${open ? `<div class="body">${this.body(s, diff)}</div>` : ""}`;
     if (this.live) scrollDown();
   }
@@ -575,7 +576,7 @@ class Turn {
       parts.push(`<div class="subs">${sp && sp.length ? `<div class="splan">On screen: ${sp.map(esc).join(" → ")}</div>` : ""}${(s.subs || []).map((x) => {
         const [v, o] = label(x.tool, x.args);
         const st = x.result === undefined ? "running" : /^error|I won't|didn't do it/.test(x.result || "") ? "error" : "ok";
-        return `<div class="act"><div class="row"><span class="sd ${st}"></span><span class="verb">${esc(v)}</span><span class="obj">${esc(o)}</span></div></div>`;
+        return `<div class="act"><div class="row"><span class="sd st-${st}"></span><span class="verb">${esc(v)}</span><span class="obj">${esc(o)}</span></div></div>`;
       }).join("")}</div>`);
       if (s.result) parts.push(`<pre class="out">${esc(s.result)}</pre>`);
       return parts.join("");

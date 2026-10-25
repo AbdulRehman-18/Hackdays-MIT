@@ -224,7 +224,8 @@ def workspace_tools(root: Path) -> list[Tool]:
         """Change part of a file by replacing exact text. Returns the diff."""
         p, before, after = plan_edit(root, path, old_text, new_text, replace_all)
         if before == after:
-            return {"text": f"No change: old_text and new_text are the same in {rel(p)}.", "path": rel(p)}
+            return {"text": f"No change: old_text and new_text are the same in {rel(p)}.", "path": rel(p),
+                    "noop": True}
         p.write_text(after)
         diff, a, d = unified(before, after, rel(p))
         return {"text": f"Edited {rel(p)} (+{a} -{d})\n{diff[:3000]}", "diff": diff, "path": rel(p)}
@@ -237,7 +238,7 @@ def workspace_tools(root: Path) -> list[Tool]:
         before = p.read_text(errors="replace") if p.is_file() else ""
         p.parent.mkdir(parents=True, exist_ok=True)
         if before == content:
-            return {"text": f"No change: {rel(p)} already has exactly this content.", "path": rel(p)}
+            return {"text": f"No change: {rel(p)} already has exactly this content.", "path": rel(p), "noop": True}
         p.write_text(content)
         diff, a, d = unified(before, content, rel(p))
         verb = "Updated" if before else "Created"

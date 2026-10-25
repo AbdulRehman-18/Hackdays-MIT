@@ -286,7 +286,7 @@ class ChatAgent:
         except Exception as e:
             return f"error: {e}", "error", {}
         failed = out.startswith("error") or extras.get("exit_code", 0) != 0
-        return out, "error" if failed else "ok", extras
+        return out, "error" if failed else "skip" if extras.pop("noop", False) else "ok", extras
 
     def _answer(self, turns, user, steps, t0) -> ChatResult:
         msgs = self.answer_messages(turns, user, steps)

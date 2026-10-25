@@ -52,15 +52,24 @@ nothing swaps or spills onto the CPU. `forge doctor` prints the profile; anythin
 | Memory (Apple Silicon) | Chat and voice | Screen agent | Context | Speech |
 |---|---|---|---|---|
 | 8 GB | Gemma 4 E2B | Gemma 4 E2B | 8K | Whisper small.en |
-| 16 GB | Gemma 4 E4B | Gemma 4 E4B | 16K | Whisper large-v3-turbo |
-| 24-36 GB | Gemma 4 E4B | Gemma 4 12B QAT | 32K | Whisper large-v3-turbo |
-| 48 GB+ | Gemma 4 E4B | Gemma 4 26B A4B | 32K | Whisper large-v3-turbo |
+| 16 GB | Gemma 4 E4B | Gemma 4 E4B | 16K | Whisper small.en |
+| 24-36 GB | Gemma 4 E4B | Gemma 4 E4B | 32K | Whisper small.en |
+| 48 GB+ | Gemma 4 E4B | Gemma 4 E4B | 32K | Whisper small.en |
 | No Apple GPU | Gemma 4 E2B (CPU) | Gemma 4 E2B | 8K | faster-whisper small.en (`pip install faster-whisper`) |
 
-Speech uses Whisper large-v3-turbo on the Apple GPU, as Monday does: smaller models invent words out of room noise
-and mishear commands. Whisper always encodes a 30-second window, so its speed depends on model size, not on how
-long you spoke: on an M4 turbo takes about 0.8 s a command (a 4-bit turbo is no faster) and small.en about 0.2 s.
-`FORGE_STT_MODEL=fast` picks small.en if you prefer speed and speak clearly in a quiet room.
+Defaults are light: one E4B model, Whisper small.en (about 0.2 s a command on an M4) and Kokoro-82M for speech.
+Bigger Gemmas are optional picks in the Model hub; `FORGE_STT_MODEL=accurate` picks Whisper large-v3-turbo
+(about 0.8 s) for strong accents or noisy rooms.
+
+## Forge Studio and the voice agent
+
+- **Studio** (`forge app`, or `forge serve` for the browser) works like a Claude Code desktop app for Ollama.
+  **Code** mode opens a project folder: Forge explores it, edits files (you see every diff), runs commands and
+  tests, asks before edits and commands (Allow once / Always allow / Deny), and keeps going until the tests pass.
+  **Computer** mode does things on your Mac: apps, the web, files, Reminders, Notes, Calendar, timers, and the
+  screen agent that clicks and types.
+- **The voice agent** (`forge voice`, or "Continue with voice agent" in Studio) is hands-free: "Hey Forge" or a
+  double clap, the on-screen orb, spoken replies. It only runs when you start it.
 
 ## Quick start (macOS)
 
