@@ -75,15 +75,17 @@ code { font-family: var(--mono); font-size: .92em; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* ---------------- layout ---------------- */
-.app { display: grid; grid-template-columns: var(--side-w) 1fr; height: 100vh; height: 100dvh; }
+/* pinned to the visible window: never taller than it, whatever the content (100vh is unreliable in an embedded WebKit
+   window); the session list and the conversation scroll inside it, and the composer and sidebar footer stay put */
+.app { position: fixed; inset: 0; display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
 .app.collapsed { grid-template-columns: 0 1fr; }
 .app.collapsed .side { visibility: hidden; }
-.main { display: flex; flex-direction: column; min-width: 0; height: 100%; position: relative; }
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; position: relative; overflow: hidden; }
 .view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .column { width: 100%; max-width: var(--col); margin: 0 auto; padding: 0 24px; }
 
 /* ---------------- sidebar ---------------- */
-.side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
 .side-top { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px 8px 14px; }
 .brand { display: flex; align-items: center; gap: 9px; color: var(--text); font-size: 15px; }
 .brand:hover { text-decoration: none; }
@@ -94,7 +96,7 @@ code { font-family: var(--mono); font-size: .92em; }
 .side-search { margin: 0 10px 6px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--r-sm); color: var(--text-3); }
 .side-search:focus-within { background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-2); }
 .side-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font-size: 13px; }
-.sessions { flex: 1; overflow-y: auto; padding: 4px 6px 12px; }
+.sessions { flex: 1 1 0; min-height: 0; overflow-y: auto; padding: 4px 6px 12px; }
 .grp { margin-top: 10px; }
 .grp-h { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 11.5px; font-weight: 600; color: var(--text-3); text-transform: none; letter-spacing: .01em; }
 .grp-h svg { width: 13px; height: 13px; }
@@ -109,7 +111,7 @@ code { font-family: var(--mono); font-size: .92em; }
 .sess .more:hover { color: var(--text); background: var(--active); }
 .sess input { flex: 1; min-width: 0; border: 1px solid var(--accent); border-radius: 5px; padding: 1px 6px; background: var(--panel); outline: 0; font-size: 13px; }
 .side-empty { padding: 18px 12px; color: var(--text-3); font-size: 13px; }
-.side-foot { border-top: 1px solid var(--line); padding: 6px; }
+.side-foot { flex: none; border-top: 1px solid var(--line); padding: 6px; }
 .side-links { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
 .side-links a { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-sm); color: var(--text-2); font-size: 13px; }
 .side-links a:hover { background: var(--hover); color: var(--text); text-decoration: none; }
@@ -166,7 +168,7 @@ code { font-family: var(--mono); font-size: .92em; }
 .menu .danger { color: var(--red); }
 
 /* ---------------- conversation ---------------- */
-.scroller { flex: 1; overflow-y: auto; scroll-behavior: smooth; padding: 22px 0 8px; }
+.scroller { flex: 1 1 0; min-height: 0; overflow-y: auto; scroll-behavior: smooth; padding: 22px 0 8px; }
 .turn { margin: 0 0 22px; }
 .turn.user { display: flex; justify-content: flex-end; }
 .ubox { max-width: 86%; background: var(--sunk); border: 1px solid var(--line); border-radius: 12px; padding: 9px 13px; white-space: pre-wrap; word-wrap: break-word; }

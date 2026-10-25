@@ -1,4 +1,5 @@
 """Files: find with Spotlight, open, read and summarize, safely move to the Trash (always asks first)."""
+import re
 import subprocess
 from pathlib import Path
 from typing import Annotated
@@ -15,20 +16,57 @@ READABLE = {".txt", ".md", ".py", ".js", ".ts", ".json", ".csv", ".html", ".css"
             ".java", ".c", ".cpp", ".go", ".rs", ".sh", ".log", ".rtf", ".tex"}
 
 
+DOCS = {".pdf", ".doc", ".docx", ".pages", ".rtf", ".txt", ".md", ".key", ".pptx", ".odt", ".epub", ".xlsx", ".csv",
+        ".numbers"}
+FILLER = {"a", "an", "the", "my", "me", "of", "for", "to", "in", "on", "and", "or", "file", "files", "document",
+          "documents", "doc", "find", "open", "search", "show", "named", "called", "about", "book", "ebook", "copy"}
+KINDS = {"pdf": (".pdf",), "pdfs": (".pdf",), "word": (".docx", ".doc"), "docx": (".docx",),
+         "excel": (".xlsx", ".xls", ".csv"),
+         "spreadsheet": (".xlsx", ".xls", ".csv", ".numbers"), "image": (".png", ".jpg", ".jpeg", ".heic", ".webp"),
+         "photo": (".png", ".jpg", ".jpeg", ".heic"), "picture": (".png", ".jpg", ".jpeg", ".heic"),
+         "slides": (".pptx", ".key", ".pdf"), "presentation": (".pptx", ".key", ".pdf"), "resume": (), "cv": ()}
+
+
+def _mdfind(expr: str) -> list[str]:
+    return run("mdfind", "-onlyin", str(HOME), expr, timeout=10).stdout.splitlines()
+
+
 def spotlight(query: str, limit: int = 8) -> list[Path]:
-    """Files whose name, then whose content, matches the query, newest first."""
-    q_ = query.replace('"', "").replace("'", "").strip()
-    if not q_:
+    """Files matching the query's words (all of them in the name or the contents), newest first. "pdf", "word",
+    "image"... filter by type, and filler ("my", "the", "file") is ignored. With no full match, the files that
+    match the most words in their name are returned."""
+    raw = [w for w in re.findall(r"[\w.+#-]+", query.lower()) if w]
+    exts = tuple(e for w in raw for e in KINDS.get(w, ()))
+    words = [w for w in raw if w not in FILLER and w not in KINDS or w in ("resume", "cv")]
+    if not words:
+        words = [w for w in raw if w not in FILLER]
+    if not words:
         return []
-    out: list[Path] = []
-    for expr in (f"kMDItemDisplayName == '*{q_}*'cd", f"kMDItemTextContent == '{q_}'cd"):
-        r = run("mdfind", "-onlyin", str(HOME), expr, timeout=10)
-        for line in r.stdout.splitlines():
-            p = Path(line)
-            if any(s in line for s in SKIP) or p in out or p.is_dir() and p.suffix != ".app":
-                continue
-            out.append(p)
-    out.sort(key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+    esc = [w.replace("'", "").replace('"', "") for w in words]
+    exprs = [" && ".join(f"kMDItemDisplayName == '*{w}*'cd" for w in esc),
+             " && ".join(f"kMDItemTextContent == '{w}'cd" for w in esc)]
+    def ok(line: str, content: bool) -> bool:
+        p = Path(line)
+        if any(s in line for s in SKIP) or p.is_dir() and p.suffix != ".app":
+            return False
+        if exts:
+            return p.suffix.lower() in exts
+        return not content or p.suffix.lower() in DOCS  # a word inside source code is not "my resume"
+
+    def newest(lines: list[str], content: bool = False) -> list[Path]:
+        ps = {Path(x) for x in lines if ok(x, content)}
+        return sorted(ps, key=lambda p: p.stat().st_mtime if p.exists() else 0, reverse=True)
+
+    out = newest(_mdfind(exprs[0]))  # the name matches every word: the best hits, first
+    if not out and len(esc) > 1:  # no name has every word: names with most of them
+        counts: dict[str, int] = {}
+        for w in esc:
+            for line in _mdfind(f"kMDItemDisplayName == '*{w}*'cd")[:300]:
+                counts[line] = counts.get(line, 0) + 1
+        need = max(2, (len(esc) + 1) // 2)
+        out = [p for p in newest([x for x, n in counts.items() if n >= need])]
+        out.sort(key=lambda p: -counts.get(str(p), 0))
+    out += [p for p in newest(_mdfind(exprs[1]), content=True) if p not in out]  # then files that mention it
     return out[:limit]
 
 
@@ -60,7 +98,9 @@ def read_text(p: Path, limit: int = 14000) -> str:
 
 @tool(group="files")
 def find_files(query: Annotated[str, Field(description="words from the file name or its contents")]) -> str:
-    """Search the user's files by name or content (Spotlight)."""
+    """Find files on this Mac (documents, PDFs, books, resumes, slides, images) by words from their name or
+    contents. Use it whenever the user wants one of their own files, e.g. "find my resume", "find the Automate the
+    Boring Stuff book", "the PDF about my project"."""
     hits = spotlight(query)
     if not hits:
         return f"No files match {query!r}."

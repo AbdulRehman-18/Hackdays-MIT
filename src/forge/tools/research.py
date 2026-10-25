@@ -32,7 +32,7 @@ def page_text(raw: str, limit: int = 7000) -> tuple[str, str]:
 
 @tool(group="search")
 def web_search(query: Annotated[str, Field(description="search words, with place and time if relevant")]) -> str:
-    """Search the web (DuckDuckGo). Returns titles, snippets and links to read."""
+    """Search the internet (DuckDuckGo) for information. Not for the user's own files: use find_files for those."""
     try:
         hits = search(query, 8)
     except httpx.HTTPError as e:
