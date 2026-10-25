@@ -33,7 +33,7 @@ def router(monkeypatch):
 
 
 @pytest.mark.parametrize("text,path,first", [
-    ("Hey Forge, what's the time", "instant", None),
+    ("Hey Monday, what's the time", "instant", None),
     ("weather in London", "instant", ("weather", ("London",))),
     ("set a timer for 10 minutes", "instant", ("set_timer", (600,))),
     ("volume 40", "instant", ("volume", (40,))),
@@ -112,7 +112,7 @@ def test_hud_receives_monday_calls():
                 {"type": "prefs", "prefs": {"hud_mode": "island"}}]:
         hud_native.on_event(msg)
     js = hud_native._js
-    assert js[0] == 'H.state("thinking")' and js[1] == 'H.say("you","hi")' and js[2] == 'H.say("forge","Hello!")'
+    assert js[0] == 'H.state("thinking")' and js[1] == 'H.say("you","hi")' and js[2] == 'H.say("monday","Hello!")'
     assert "H.wake()" in js and "H.move(10.0,20.0,300)" in js and "H.cursor(true)" in js
     assert js.count('H.state("thinking")') == 2  # "waiting" is shown as thinking
     assert js[-1] == 'H.mode("island")'

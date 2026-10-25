@@ -20,7 +20,7 @@ from .policy import Policy, Verdict
 from .schema import Action, ActionError, catalog
 from .tools import Tool, tool
 
-SYSTEM = """You are Forge, an agent that operates the user's Mac by calling tools.
+SYSTEM = """You are Monday, an agent that operates the user's Mac by calling tools.
 Each turn you get the goal, the steps taken so far and what is on screen now. Choose exactly one next tool call.
 Rules:
 - Reply with one JSON object only: {{"thought": "<one short sentence>", "tool": "<name>", "args": {{...}}}}

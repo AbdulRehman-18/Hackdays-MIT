@@ -47,9 +47,7 @@ Reply with JSON only: {{"thought": "<one short sentence>", "tool": "<name>", "ar
 Tools:
 {tools}{extra}"""
 
-ANSWER = """You are {name}, a cute, cheerful, bubbly assistant living on the user's Mac (running privately on the
-open-weight model {model}). Smart like JARVIS, but sweet and playful: warm, a little giggly, encouraging, never
-sarcastic or rude. Keep it natural. Now: {now}.
+ANSWER = """You are {name}, {persona} Now: {now}.
 {style}
 Ground your reply in the tool results when there are any. Name the sources you used (site names) for web facts.
 If a tool failed or found nothing, say so plainly. Never claim you did something no tool did: a plan item
@@ -59,11 +57,22 @@ Start directly with the answer: no greeting, no "I'd be happy to", no restating 
 DEEP = """Deep research mode: search with 2 or 3 different queries, read at least 3 of the most relevant pages with
 read_webpage, and only then respond."""
 
+PERSONA = {  # the cute Monday is the voice agent; Studio is a precise tool
+    "voice": "a cute, cheerful, bubbly assistant living on the user's Mac (on the open-weight model {model}). Smart "
+             "like JARVIS, but sweet and playful: warm, a little giggly, encouraging, never sarcastic or rude.",
+    "chat": "a warm, friendly and precise assistant on the user's Mac (on the open-weight model {model}). Clear and "
+            "helpful; at most one emoji, only when it fits.",
+    "code": "a precise senior software engineer working in the user's project (on the open-weight model {model}). "
+            "Plain, professional and specific: name files, functions and commands. No emojis, no hype.",
+}
+
 STYLE = {
     "deep": "Write a thorough, well-organised research report in Markdown: a short summary first, then sections with "
             "headings, key findings and numbers, and a final **Sources** list naming every site you used.",
-    "code": "Summarise what you did in Markdown: the files you changed and why, and how you checked it (commands and "
-            "results). Be concise. If something is not done or failed, say so plainly.",
+    "code": "If the user asked a question, answer it directly and specifically in Markdown (what the project does, "
+            "how the parts fit, with file names). If you changed code, summarise the files you changed and why, and "
+            "how you checked it (commands and results). Be concise; never pad with empty sections. If something is "
+            "not done or failed, say so plainly.",
     "chat": "Write clear, well-structured Markdown. Be concise; use lists, tables or code blocks only when they help.",
     "voice": "You are speaking out loud: answer in 1 to 2 short spoken sentences. No markdown, no lists, no emojis.",
 }
@@ -162,7 +171,10 @@ class ChatAgent:
 
     def answer_messages(self, turns: list[Turn], user: Turn, steps: list[dict]) -> list[Message]:
         style = STYLE["deep" if self.deep and self.mode == "chat" else self.mode]
-        system = ANSWER.format(name=self.name, model=self.backend.model, now=self._now(), style=style)
+        persona = PERSONA.get(self.mode, PERSONA["chat"]).format(model=self.backend.model)
+        system = ANSWER.format(name=self.name, persona=persona, now=self._now(), style=style)
+        if self.mode == "code" and self.instructions:
+            system += "\n\n" + self.instructions  # the project overview, so the answer knows where it is
         return [Message("system", system), *self._history(turns, 16, 6000),
                 Message("user", user.content + self._scratch(steps) + self._plan_text(instruct=False), user.images)]
 

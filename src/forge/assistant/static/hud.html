@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>Forge HUD</title>
+<title>Monday HUD</title>
 <style>
   :root { --ease: cubic-bezier(.2, .9, .25, 1); }
   html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; cursor: none;
@@ -136,7 +136,7 @@
   <button onclick="H.wake();H.state('listening');H.say('you','')">wake</button>
   <button onclick="H.state('listening')">listening</button>
   <button onclick="H.say('you','Open Excalidraw and draw a cat');H.state('thinking')">thinking</button>
-  <button onclick="H.state('speaking');H.say('forge','It is 9:42 PM. Want me to set a reminder?')">speaking</button>
+  <button onclick="H.state('speaking');H.say('monday','It is 9:42 PM. Want me to set a reminder?')">speaking</button>
   <button onclick="H.state('acting');H.cursor(true);setTimeout(()=>H.move(innerWidth*.3,innerHeight*.35,700),450)">acting + cursor</button>
   <button onclick="const x=innerWidth*(.2+Math.random()*.6),y=innerHeight*(.15+Math.random()*.5);H.move(x,y,650);setTimeout(()=>H.press(x,y),700)">move + click</button>
   <button onclick="H.state('idle');H.cursor(false)">idle</button>

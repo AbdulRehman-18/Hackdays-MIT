@@ -17,7 +17,7 @@ PROFILE = profile(HARDWARE)
 
 @dataclass
 class Settings:
-    name: str = os.getenv("FORGE_NAME", "Forge")
+    name: str = os.getenv("FORGE_NAME", "Monday")
     route: str = os.getenv("FORGE_ROUTE", "local")  # local (Ollama), openai (any OpenAI-compatible server), aistudio
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
     fast_model: str = os.getenv("FORGE_FAST_MODEL", PROFILE.fast_model)

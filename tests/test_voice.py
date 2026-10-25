@@ -31,7 +31,7 @@ class FakeMouth:
 
 def make(busy=False, mouth=None):
     cmds, wakes = [], []
-    lis = voice.Listener("Forge", cmds.append, lambda: wakes.append(1), lambda v: None, lambda: busy,
+    lis = voice.Listener("Monday", cmds.append, lambda: wakes.append(1), lambda v: None, lambda: busy,
                          mouth or FakeMouth())
     return lis, cmds, wakes
 
@@ -52,11 +52,11 @@ def test_strip_echo_keeps_the_user_part():
 
 # ---- wake word ----
 def test_wake_phrases_and_whisper_spellings():
-    w = voice.wake_pattern("Forge")
-    assert w.match("Hey Forge, open YouTube").group(1) == "open YouTube"
-    assert w.match("okay hey forj what's the time").group(1) == "what's the time"
-    assert w.match("Forge?").group(1) == ""
-    assert w.match("Hey Ford, play music")
+    w = voice.wake_pattern("Monday")
+    assert w.match("Hey Monday, open YouTube").group(1) == "open YouTube"
+    assert w.match("okay hey munday what's the time").group(1) == "what's the time"
+    assert w.match("Monday?").group(1) == ""
+    assert w.match("Hey Mundy, play music")
     assert not w.match("I went to the forge yesterday")
 
 
@@ -64,13 +64,13 @@ def test_needs_the_wake_word_when_idle():
     lis, cmds, wakes = make()
     lis._route("open YouTube and play lofi")
     assert cmds == [] and wakes == []
-    lis._route("Hey Forge, open YouTube and play lofi")
+    lis._route("Hey Monday, open YouTube and play lofi")
     assert cmds == ["open YouTube and play lofi"]
 
 
 def test_wake_word_alone_wakes_then_next_phrase_is_the_command():
     lis, cmds, wakes = make()
-    lis._route("Hey Forge")
+    lis._route("Hey Monday")
     assert wakes == [1] and cmds == []
     lis._route("what's the weather")
     assert cmds == ["what's the weather"]
@@ -111,7 +111,7 @@ def test_loop_guard_ignores_a_repeat_without_the_wake_word():
     lis.converse(8)
     lis._route("set a timer for 5 minutes")  # same command (number words normalised)
     assert cmds == ["set a timer for five minutes"]
-    lis._route("Hey Forge, set a timer for 5 minutes")  # with the wake word it goes through
+    lis._route("Hey Monday, set a timer for 5 minutes")  # with the wake word it goes through
     assert len(cmds) == 2
 
 
@@ -125,7 +125,7 @@ def test_dangling_sentences():
 
 def test_unfinished_sentence_waits_for_the_rest():
     lis, cmds, _ = make()
-    lis._text("Hey Forge, I want you to")
+    lis._text("Hey Monday, I want you to")
     assert cmds == [] and lis.pending
     lis._text("open YouTube")
     assert cmds == ["I want you to open YouTube"]
@@ -133,14 +133,14 @@ def test_unfinished_sentence_waits_for_the_rest():
 
 def test_unfinished_sentence_is_sent_after_finish_s():
     lis, cmds, _ = make()
-    lis._text("Hey Forge, open the")
+    lis._text("Hey Monday, open the")
     lis.pending = (lis.pending[0], time.time() - voice.FINISH_S - 0.1)
     lis._flush_pending()
     assert cmds == ["open the"]
 
 
 def test_echo_is_dropped_before_routing():
-    lis, cmds, _ = make(mouth=FakeMouth(recent="Hey Forge is ready, what's the time"))
+    lis, cmds, _ = make(mouth=FakeMouth(recent="Hey Monday is ready, what's the time"))
     lis.converse(8)
     lis._text("what's the time")
     assert cmds == []
@@ -220,10 +220,10 @@ def _run_engine(monkeypatch, audio, transcript, busy=False):
 @pytest.mark.skipif(not shutil.which("say"), reason="needs macOS say for synthetic speech")
 @pytest.mark.parametrize("fan_db", [-36, -30])
 def test_engine_routes_a_command_in_a_noisy_room(monkeypatch, tmp_path, fan_db):
-    sp = _speech("Hey Forge, what's the weather in London", tmp_path)
+    sp = _speech("Hey Monday, what's the weather in London", tmp_path)
     audio = _fan(5 + len(sp) / SR, fan_db)
     audio[int(2 * SR):int(2 * SR) + len(sp)] += sp
-    clips, cmds, _ = _run_engine(monkeypatch, audio, "Hey Forge, what's the weather in London")
+    clips, cmds, _ = _run_engine(monkeypatch, audio, "Hey Monday, what's the weather in London")
     assert cmds == ["what's the weather in London"]
     assert max(clips) < len(sp) / SR + 1.0  # only the spoken part went to Whisper, not the room around it
 
@@ -276,6 +276,13 @@ def test_sentence_splitter_and_clean_for_speech():
 @pytest.mark.skipif(not (shutil.which("say") and __import__("os").getenv("FORGE_SLOW_TESTS")),
                     reason="real Whisper: set FORGE_SLOW_TESTS=1")
 def test_real_whisper_hears_the_command(tmp_path):
-    sp = _speech("Hey Forge, open YouTube and play lofi", tmp_path)
+    sp = _speech("Hey Monday, open YouTube and play lofi", tmp_path)
     text = voice._transcribe(sp, prompt=voice.VOCAB, lock=False)
     assert voice.wake_pattern().match(text)
+
+
+def test_monday_wake_variants():
+    w = voice.wake_pattern("Monday")
+    for heard in ("Hey Monday, open YouTube", "hey munday open YouTube", "OK mon day, open YouTube"):
+        assert w.match(heard).group(1).lower() == "open youtube"
+    assert w.match("Monday is a weekday").group(1) == "is a weekday"  # Monday's own rule: the name alone wakes it

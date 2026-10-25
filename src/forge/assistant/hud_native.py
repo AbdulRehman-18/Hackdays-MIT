@@ -94,7 +94,7 @@ def on_event(msg: dict):
     elif kind == "level":
         level(msg.get("v", 0))
     elif kind == "caption":
-        say("you" if msg.get("who") == "you" else "forge", msg.get("text", ""))
+        say("you" if msg.get("who") == "you" else "monday", msg.get("text", ""))
     elif kind == "wake":
         wake()
     elif kind == "cursor":

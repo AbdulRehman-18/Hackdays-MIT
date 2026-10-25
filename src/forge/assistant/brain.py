@@ -77,10 +77,10 @@ class Router:
              r"|\bmy (?:schedule|agenda|meetings?)\b)", lambda m: _calendar(m.string)),
             (r"\bportfolio\b", lambda m: self.portfolio()),
             (r"\bdynamic island\b|\b(?:island|notch|compact|small|mini) (?:mode|view)\b|\b(?:go|move|get) (?:to|in|"
-             r"into|inside) (?:the |my )?(?:notch|island)\b|\bminimi[sz]e (?:yourself|forge|the hud)\b|^minimi[sz]e$",
+             r"into|inside) (?:the |my )?(?:notch|island)\b|\bminimi[sz]e (?:yourself|monday|the hud)\b|^minimi[sz]e$",
              lambda m: self.hud("island")),
             (r"\bfull[ -]?(?:screen|window)? (?:view|mode)\b|\b(?:big|normal) mode\b|\bmaximi[sz]e (?:yourself|"
-             r"forge|the hud)\b|^maximi[sz]e$|\bcome out of the notch\b", lambda m: self.hud("full")),
+             r"monday|the hud)\b|^maximi[sz]e$|\bcome out of the notch\b", lambda m: self.hud("full")),
             (r"\bwhat(?:'s| is)?(?: the)? time\b|\btime is it\b|\bcurrent time\b|^time$",
              lambda m: datetime.datetime.now().strftime("It's %-I:%M %p.")),
             (r"\bwhat(?:'s| is)?(?: the| today'?s)? date\b|\bwhat day is (?:it|today)\b|\btoday'?s date\b",
@@ -116,7 +116,7 @@ class Router:
         """(path, reply) when LOCAL or a router pattern handled it, else None for the harness."""
         text = re.sub(r"(?i)\s+dot\s+(py|js|ts|tsx|jsx|md|txt|pdf|json|html|css|swift|java|cpp|go|rs|csv|png|jpg)\b",
                       r".\1", text)
-        t = re.sub(r"(?i)^(?:hey |ok |okay )?forge[, ]+", "", text.strip()).rstrip(".!?")
+        t = re.sub(r"(?i)^(?:hey |ok |okay )?(?:monday|forge)[, ]+", "", text.strip()).rstrip(".!?")
         if COMPOUND.search(t):
             # several things at once ("weather in London and save it as a note"): an instant path would do only
             # the first, so the harness plans it. "open YouTube and play lofi" is still one deterministic step.

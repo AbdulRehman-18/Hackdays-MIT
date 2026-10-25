@@ -1,13 +1,13 @@
-# Forge
+# Monday
 
 **A harness that makes open-weight models like Gemma reliable at real tasks on your own computer.**
 
 Small open models can reason, but they often fail as agents. They emit broken tool calls, invent tools, repeat
 the same step, or claim they are done when they are not. Closed agents avoid much of this because of the harness
-around the model. Forge is that harness, built for open weights and running on your machine.
+around the model. Monday is that harness, built for open weights and running on your machine.
 
-> Status: **M0**. Harness core, two model routes, the schema and repair layer, and a minimal agent are in.
-> Device tools, the voice assistant and the HUD come next.
+> Monday Studio (Code + Computer modes) and the hands-free voice agent ("Hey Monday") both run on Gemma 4 on your
+> Mac through one harness: constrained tool calls, repair, planning, a policy gate and a cycle guard.
 
 ## How it works
 
@@ -19,9 +19,9 @@ goal ─► plan (only for compound requests: "X and then Y" becomes a checklist
       ─► run the tool ─► check the result ─► repeat until done, step cap or cycle guard
 ```
 
-| What small models get wrong | What Forge does |
+| What small models get wrong | What Monday does |
 |---|---|
-| Broken or invented tool calls | Forge owns the tool-call protocol. Each step's JSON schema is enforced during decoding (`anyOf`, one branch per tool, typed args). Replies are validated, and a failed reply gets one repair turn that names exactly what to fix. |
+| Broken or invented tool calls | Monday owns the tool-call protocol. Each step's JSON schema is enforced during decoding (`anyOf`, one branch per tool, typed args). Replies are validated, and a failed reply gets one repair turn that names exactly what to fix. |
 | Losing the thread | A short, fresh prompt every step: the goal plus the last few steps and their results. |
 | Forgetting half the request | A compound request ("check the weather and save it as a note") is planned first, in one constrained call, as a checklist with a tool per item. The loop may not answer while an item is open: it is pushed back once, then the item is marked skipped, and the answer must say what was not done. The screen agent gets a short step plan too. |
 | Loops and runaway tasks | A cycle guard, a step cap, and a note in the history when an action is repeated. |
@@ -42,12 +42,12 @@ Three routes, with the same harness on all of them:
   schema goes out as `response_format: json_schema`; a server that rejects it gets plain JSON mode, then the schema
   in the prompt, and validate-and-repair keeps the output usable either way.
 - **aistudio**: hosted Gemma, for machines that can't run the model locally. If hosted Gemma refuses JSON mode or
-  system instructions, Forge falls back to plain prompting automatically.
+  system instructions, Monday falls back to plain prompting automatically.
 
 ## Hardware
 
-Forge reads the chip and memory at start-up and picks models that fit next to each other and next to speech, so
-nothing swaps or spills onto the CPU. `forge doctor` prints the profile; anything in `.env` overrides it.
+Monday reads the chip and memory at start-up and picks models that fit next to each other and next to speech, so
+nothing swaps or spills onto the CPU. `monday doctor` prints the profile; anything in `.env` overrides it.
 
 | Memory (Apple Silicon) | Chat and voice | Screen agent | Context | Speech |
 |---|---|---|---|---|
@@ -61,14 +61,14 @@ Defaults are light: one E4B model, Whisper small.en (about 0.2 s a command on an
 Bigger Gemmas are optional picks in the Model hub; `FORGE_STT_MODEL=accurate` picks Whisper large-v3-turbo
 (about 0.8 s) for strong accents or noisy rooms.
 
-## Forge Studio and the voice agent
+## Monday Studio and the voice agent
 
-- **Studio** (`forge app`, or `forge serve` for the browser) works like a Claude Code desktop app for Ollama.
-  **Code** mode opens a project folder: Forge explores it, edits files (you see every diff), runs commands and
+- **Studio** (`monday app`, or `monday serve` for the browser) works like a Claude Code desktop app for Ollama.
+  **Code** mode opens a project folder: Monday explores it, edits files (you see every diff), runs commands and
   tests, asks before edits and commands (Allow once / Always allow / Deny), and keeps going until the tests pass.
   **Computer** mode does things on your Mac: apps, the web, files, Reminders, Notes, Calendar, timers, and the
   screen agent that clicks and types.
-- **The voice agent** (`forge voice`, or "Continue with voice agent" in Studio) is hands-free: "Hey Forge" or a
+- **The voice agent** (`monday voice`, or "Continue with voice agent" in Studio) is hands-free: "Hey Monday" or a
   double clap, the on-screen orb, spoken replies. It only runs when you start it.
 
 ## Quick start (macOS)
@@ -77,17 +77,17 @@ Bigger Gemmas are optional picks in the Model hub; `FORGE_STT_MODEL=accurate` pi
 ollama pull gemma4:e4b
 uv sync
 cp .env.example .env
-uv run forge run "open calculator"
+uv run monday run "open calculator"
 ```
 
 Other commands:
 
 ```bash
-uv run forge run "go to github.com" --dry-run            # decide, but don't act
-uv run forge run "open notes" --route aistudio           # hosted Gemma (needs GEMINI_API_KEY)
-uv run forge ask "weather in London and save it as a note" --route openai   # any OpenAI-compatible server
-uv run forge doctor                                      # hardware profile, models, permissions
-uv run forge bench --runs 20                             # raw model vs model + Forge
+uv run monday run "go to github.com" --dry-run            # decide, but don't act
+uv run monday run "open notes" --route aistudio           # hosted Gemma (needs GEMINI_API_KEY)
+uv run monday ask "weather in London and save it as a note" --route openai   # any OpenAI-compatible server
+uv run monday doctor                                      # hardware profile, models, permissions
+uv run monday bench --runs 20                             # raw model vs model + Monday
 uv run pytest
 ```
 

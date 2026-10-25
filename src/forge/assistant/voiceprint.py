@@ -1,9 +1,9 @@
-"""Speaker lock: enroll the owner's voice once, then only that voice can command Forge.
+"""Speaker lock: enroll the owner's voice once, then only that voice can command Monday.
 
 A phrase is cut into overlapping 1.6 s pieces and scored by its best piece, so a few clear words count even when the
-rest is room noise, another person or Forge's own voice. One threshold, calibrated at enrollment from pieces of
+rest is room noise, another person or Monday's own voice. One threshold, calibrated at enrollment from pieces of
 your own clips; short phrases and phrases inside a conversation you started get a little slack.
-`forge enroll --check` tests the current room, `--add` teaches it your voice in that room. Every failure fails
+`monday enroll --check` tests the current room, `--add` teaches it your voice in that room. Every failure fails
 open: a broken check must never lock the owner out."""
 import datetime
 import os

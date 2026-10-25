@@ -79,7 +79,9 @@ def test_finish_check_refuses_to_stop_early():
     assert "no file has been edited" in code.finish_check([], "add a login page")
     fixed = failing + [{"tool": "edit_file", "status": "ok"}, {"tool": "run_command", "status": "ok", "exit_code": 0}]
     assert code.finish_check(fixed, "fix the tests") == ""
-    assert code.finish_check([], "explain how calc.py works") == ""
+    assert "Look at the project" in code.finish_check([], "explain this project")  # never answer unread
+    read = [{"tool": "read_file", "status": "ok"}]
+    assert code.finish_check(read, "explain how calc.py works") == ""
 
 
 def test_orientation_and_test_command(ws):

@@ -1,7 +1,7 @@
-"""Voice lock setup (forge enroll).
-  forge enroll          record five phrases and save your voiceprint
-  forge enroll --check  test whether Forge recognises you in this room
-  forge enroll --add    add clips from this (noisy) room to your voiceprint"""
+"""Voice lock setup (monday enroll).
+  monday enroll          record five phrases and save your voiceprint
+  monday enroll --check  test whether Monday recognises you in this room
+  monday enroll --add    add clips from this (noisy) room to your voiceprint"""
 import sys
 import traceback
 
@@ -12,8 +12,8 @@ from .voice import VOICE_LOCK
 
 SR = 16000
 SECONDS = 4
-PHRASES = ["Hey Forge", "Open the browser and search for Accelerator", "Find the PDF about my project",
-           "Remove the background from the image on my desktop", "Forge, draw a rocket"]
+PHRASES = ["Hey Monday", "Open the browser and search for Accelerator", "Find the PDF about my project",
+           "Remove the background from the image on my desktop", "Monday, draw a rocket"]
 CHECK_PHRASES = ["What's the time?", "Play some music on YouTube", "Stop"]
 
 
@@ -105,7 +105,7 @@ def capture(phrases: list[str]):
 
 
 def show_scores(clips) -> int:
-    """Score clips like Forge does at runtime and print pass / FAIL for each."""
+    """Score clips like Monday does at runtime and print pass / FAIL for each."""
     mean = voiceprint.load()[0]
     ok = 0
     for i, c in enumerate(clips, 1):
@@ -120,14 +120,14 @@ def show_scores(clips) -> int:
 def main(mode: str = "") -> int:
     check_setup()
     if mode in ("check", "add") and voiceprint.load() is None:
-        sys.exit("No voice enrolled yet. Run: forge enroll")
+        sys.exit("No voice enrolled yet. Run: monday enroll")
     if mode == "check":
-        print("\nRoom check: say three short commands here, the way you talk to Forge.")
+        print("\nRoom check: say three short commands here, the way you talk to Monday.")
         clips, _ = capture(CHECK_PHRASES)
         ok = show_scores(clips)
         print(f"\n{ok}/{len(clips)} recognised as you.")
         if ok < len(clips):
-            print("  Teach Forge your voice in this room:  forge enroll --add")
+            print("  Teach Monday your voice in this room:  monday enroll --add")
         return 0
     if mode == "add":
         print("\nAdding clips recorded in this room to your voiceprint (keeps your earlier clips).")
@@ -145,7 +145,7 @@ def main(mode: str = "") -> int:
         print("  WARNING: the clips differ a lot. Re-run somewhere quieter, same distance and tone.")
     need = voiceprint.save(embeddings, clips)
     print(f"\nVoice enrolled. Needed score {need:.2f}. Saved to {voiceprint.PATH}")
-    print("Self-check (each clip scored the way Forge scores you):")
+    print("Self-check (each clip scored the way Monday scores you):")
     show_scores(clips)
-    print("\nNow set FORGE_VOICE_LOCK=1 in .env and restart Forge. In a noisy room run:  forge enroll --check")
+    print("\nNow set FORGE_VOICE_LOCK=1 in .env and restart Monday. In a noisy room run:  monday enroll --check")
     return 0

@@ -1,7 +1,7 @@
 """Voice, fully on device with open models: a faithful port of Monday's listening engine.
 
 Ears      push-to-talk recording -> Whisper on the Apple GPU (mlx-whisper; faster-whisper on the CPU elsewhere)
-Listener  always-on: "Hey Forge" or a double clap wakes it; while it works or talks you can just speak over it
+Listener  always-on: "Hey Monday" or a double clap wakes it; while it works or talks you can just speak over it
 Mouth     Kokoro-82M, sentence by sentence (it starts talking while the model is still writing)
 
 Listening rules (do not drift, see Monday's AGENTS.md section 5):
@@ -61,7 +61,7 @@ FINISH_S = float(_env("FINISH_S", "1.8"))  # extra wait when a sentence sounds u
 CONVERSE_S = float(_env("CONVERSE_S", "8"))  # after a reply, talk again without the wake word
 ACK = _env("ACK", "chime")  # what Forge does on wake: chime (instant) or speak
 DEBUG = _env("DEBUG", "0") == "1"  # one line per phrase explaining what was heard and why (~/.forge/debug.log)
-VOCAB = _env("STT_VOCAB", "Forge, YouTube, Excalidraw, Safari, Chrome, Spotify, WhatsApp, VS Code, Finder.")
+VOCAB = _env("STT_VOCAB", "Monday, YouTube, Excalidraw, Safari, Chrome, Spotify, WhatsApp, VS Code, Finder.")
 
 SPEAKING = threading.Event()  # a Mouth is playing audio right now (the chime waits for it to release the speaker)
 _mouths: list = []  # every Mouth, so preload() can warm their voice
@@ -86,10 +86,14 @@ KEY_NAMES = {"alt_r": "right Option", "alt_l": "left Option", "cmd_r": "right Co
              "fn": "Fn", "caps_lock": "Caps Lock"}
 
 
-def wake_pattern(name: str = "Forge") -> re.Pattern:
-    """ "Hey Forge, ..." and the spellings Whisper writes for it. group(1) is what follows the wake word."""
+VARIANTS = {"monday": "monday|munday|mundy|mon day|mondays",  # Monday's own list (monday/voice.py WAKE)
+            "forge": "forge|forj|forged|forges|fords?|fourge|gorge"}
+
+
+def wake_pattern(name: str = "Monday") -> re.Pattern:
+    """ "Hey Monday, ..." and the spellings Whisper writes for it. group(1) is what follows the wake word."""
     n = re.escape(name.lower())
-    alts = f"{n}|forj|forged|forges|fords?|fourge|gorge" if name.lower() == "forge" else n
+    alts = VARIANTS.get(name.lower(), n)
     return re.compile(r"^\W*(?:(?:hey|hi|hello|ok|okay|yo|oi|wake up|good morning)\W+)*"
                       rf"(?:{alts})\b\W*(.*)$", re.I)
 
@@ -127,6 +131,9 @@ def denoise(audio: np.ndarray) -> np.ndarray:
         return audio
     try:
         import noisereduce
+    except ImportError:
+        return audio  # the optional voicelock extra is not installed: nothing to warn about
+    try:
         out = noisereduce.reduce_noise(y=audio, sr=SR, stationary=False, prop_decrease=0.85)
         out = np.asarray(out, dtype=audio.dtype)
         return out if out.shape == audio.shape else audio
@@ -545,7 +552,7 @@ def clean_for_speech(text: str) -> str:
     return " ".join(t.split())
 
 
-# ---------- the wake engine: "Hey Forge" or a double clap, always listening ----------
+# ---------- the wake engine: "Hey Monday" or a double clap, always listening ----------
 
 def _vad():
     """webrtcvad speech detector, or None (then loudness alone decides)."""
@@ -766,7 +773,7 @@ class Listener:
         if not m:
             return self._dbg(f"\"{text}\" -> ignored: no wake word (say \"Hey {self.name}\")")
         rest = m.group(1).strip()
-        if len(rest.split()) >= 2:  # "Hey Forge, open YouTube" in one breath
+        if len(rest.split()) >= 2:  # "Hey Monday, open YouTube" in one breath
             self.last_cmd[:] = [" ".join(_norm(w) for w in rest.split()), time.time()]
             return self.on_command(rest)
         self._woke()

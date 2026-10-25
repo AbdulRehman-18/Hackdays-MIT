@@ -1,5 +1,5 @@
 "use strict";
-/* Forge Studio: a desktop workspace for Forge's coding and computer agent.
+/* Monday Studio: a desktop workspace for Monday's coding and computer agent.
    Talks to the local server over one WebSocket (/ws) and a small REST API; see docs/studio-protocol.md. */
 
 /* ================= helpers ================= */
@@ -51,7 +51,7 @@ function prettyModel(name) {
 
 /* ================= state ================= */
 const S = {
-  name: "Forge", model: {}, prefs: { approve: "ask", search: true, think: false }, voice: false, state: "idle",
+  name: "Monday", model: {}, prefs: { approve: "ask", search: true, think: false }, voice: false, state: "idle",
   chats: [], chatId: null, chat: null, view: "session",
   live: {},               // chat id -> Turn while a run streams
   running: new Set(),     // chat ids with a run in progress
@@ -85,7 +85,7 @@ function send(msg) {
 function onMessage(m) {
   switch (m.type) {
     case "hello":
-      S.name = m.name || "Forge"; S.voice = !!m.voice; applyModel(m.model || {}); applyPrefs(m.prefs || {});
+      S.name = m.name || "Monday"; S.voice = !!m.voice; applyModel(m.model || {}); applyPrefs(m.prefs || {});
       if (m.running_chat) S.running.add(m.running_chat);
       setState(m.state); renderSessions();
       break;
@@ -300,7 +300,7 @@ function renderStart() {
   const code = S.mode === "code";
   const ws = S.workspace;
   st.innerHTML = `<h1>What should we work on?</h1>
-    <p class="lead">Forge runs ${esc(prettyModel(S.model.model))} on this Mac. Pick how it should work.</p>
+    <p class="lead">Monday runs ${esc(prettyModel(S.model.model))} on this Mac. Pick how it should work.</p>
     <div class="modes" role="radiogroup" aria-label="Session type">
       <button class="mode-card" role="radio" data-mode="code" aria-checked="${code}"><span class="mi">${icon("code")}</span><span><b>Code</b><span>Work in a project folder: read and search files, make edits you can review, run commands and tests.</span></span></button>
       <button class="mode-card" role="radio" data-mode="computer" aria-checked="${!code}"><span class="mi">${icon("monitor")}</span><span><b>Computer</b><span>Do things on your Mac: apps, web, files, reminders and notes, or let it click and type on screen.</span></span></button>
@@ -311,8 +311,8 @@ function renderStart() {
       <form class="wpath" id="ws-form"><input id="ws-path" placeholder="/Users/you/project" aria-label="Project folder path" value="${ws ? esc(ws.path) : ""}"><button class="btn sm" type="submit">Use</button></form>
       <div class="wslist" id="ws-list" role="radiogroup" aria-label="Recent projects"></div></div>` : ""}
     <div class="suggest" aria-label="Suggestions">${SUGGEST[S.mode].map((s) => `<button data-suggest="${esc(s)}">${esc(s)}</button>`).join("")}</div>
-    <div class="voice-card"><span class="mi">${icon("wave")}</span><span class="grow"><b>Voice agent</b><span>Hands-free Forge with “Hey Forge”, the on-screen orb and spoken replies. Runs separately from Studio.</span></span>
-      ${S.prefs.voice_mode ? `<button class="btn" id="voice-stop">Stop voice agent</button>` : `<button class="btn" id="voice-go" ${S.voice ? "" : "disabled title=\"Forge was started without voice\""}>${icon("mic")}Continue with voice agent</button>`}</div>`;
+    <div class="voice-card"><span class="mi">${icon("wave")}</span><span class="grow"><b>Voice agent</b><span>Hands-free Monday with “Hey Monday”, the on-screen orb and spoken replies. Runs separately from Studio.</span></span>
+      ${S.prefs.voice_mode ? `<button class="btn" id="voice-stop">Stop voice agent</button>` : `<button class="btn" id="voice-go" ${S.voice ? "" : "disabled title=\"Monday was started without voice\""}>${icon("mic")}Continue with voice agent</button>`}</div>`;
   if (code) renderWsList();
 }
 function renderWsList() {
@@ -370,7 +370,7 @@ async function voiceAgent(on) {
   try {
     const r = await api("/api/voice-agent", { method: "POST", body: { on } });
     S.prefs.voice_mode = !!r.voice_mode; applyPrefs({});
-    toast(on ? (r.hud ? "Voice agent is on. Say “Hey Forge”." : "Voice agent is listening. Say “Hey Forge”.") : "Voice agent stopped");
+    toast(on ? (r.hud ? "Voice agent is on. Say “Hey Monday”." : "Voice agent is listening. Say “Hey Monday”.") : "Voice agent stopped");
   } catch (e) { toast(e.message, "error"); }
   if (S.view === "session" && !S.chatId) renderStart();
   if (S.view === "settings" && window.PAGES) window.PAGES.settings();
@@ -380,7 +380,7 @@ $("voice-pill").onclick = () => voiceAgent(false);
 /* ================= mode switch ================= */
 function syncMode() {
   document.querySelectorAll("#mode-seg [data-mode]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.mode === S.mode)));
-  input.placeholder = S.mode === "code" ? "Ask Forge to build, fix or explain something…  @ to mention a file" : "Ask Forge to do something on your Mac…";
+  input.placeholder = S.mode === "code" ? "Ask Monday to build, fix or explain something…  @ to mention a file" : "Ask Monday to do something on your Mac…";
   $("comp-hint").textContent = "";
 }
 async function setMode(mode) {
@@ -561,7 +561,7 @@ class Turn {
     if (s.tool === "run_command" && s.exit_code !== undefined && s.exit_code !== null) meta += `<span>exit ${esc(s.exit_code)}</span>`;
     if (s.status === "denied") meta += "<span>denied</span>"; else if (s.status === "blocked") meta += "<span>blocked</span>"; else if (s.status === "skip") meta += "<span>skipped</span>";
     if (s.ms) meta += `<span class="ms">${s.ms >= 1000 ? (s.ms / 1000).toFixed(1) + "s" : s.ms + "ms"}</span>`;
-    if (s.repaired) meta += `<span title="The first reply was malformed and Forge repaired it">repaired</span>`;
+    if (s.repaired) meta += `<span title="The first reply was malformed and Monday repaired it">repaired</span>`;
     const open = !!s._open;
     el.classList.toggle("open", open);
     el.innerHTML = `<button class="row" type="button" aria-expanded="${open}"><span class="sd st-${esc(s.status)}" aria-label="${esc(s.status)}"></span><span class="verb">${esc(verb)}</span><span class="obj">${esc(obj)}</span><span class="meta">${meta}${icon("chev-r", "chev")}</span></button>
@@ -667,14 +667,14 @@ class Turn {
     const args = a.args || {};
     let title, pv = "";
     if (a.tool === "edit_file" || a.tool === "write_file") {
-      title = `Forge wants to ${a.tool === "write_file" ? "write" : "edit"} <code>${esc(P(args))}</code>`;
+      title = `Monday wants to ${a.tool === "write_file" ? "write" : "edit"} <code>${esc(P(args))}</code>`;
       pv = a.preview ? renderDiff(a.preview, P(args)) : "";
     } else if (a.tool === "run_command") {
-      title = "Forge wants to run a command";
+      title = "Monday wants to run a command";
       pv = `<pre class="out"><span class="cmdline">$ ${esc(String(a.preview || args.command || "").replace(/^\$\s*/, ""))}</span></pre>`;
     } else {
       const [v, o] = label(a.tool, args);
-      title = `Forge wants to: ${esc(v)} <code>${esc(o)}</code>`;
+      title = `Monday wants to: ${esc(v)} <code>${esc(o)}</code>`;
       pv = a.preview ? `<pre class="out">${esc(a.preview)}</pre>` : "";
     }
     const d = document.createElement("div");
@@ -786,7 +786,7 @@ function onApproval(a) {
   t.addApproval(a);
   if (a.chat_id !== S.chatId) {
     const c = S.chats.find((x) => x.id === a.chat_id);
-    toast(`Forge needs your permission in “${c ? c.title : "another session"}”`);
+    toast(`Monday needs your permission in “${c ? c.title : "another session"}”`);
   }
 }
 function onApprovalDone(m) {
@@ -1003,7 +1003,7 @@ const Demo = {
       return true;
     }
     if (msg.type === "cancel") { this.stop(); onRun({ chat_id: S.chatId, kind: "stopped" }); onRun({ chat_id: S.chatId, kind: "done", message: null }); return true; }
-    if (msg.type === "send") { toast("This is a demo session. Start a new session to talk to Forge."); return true; }
+    if (msg.type === "send") { toast("This is a demo session. Start a new session to talk to Monday."); return true; }
     return false;
   },
   codeScript(id) {

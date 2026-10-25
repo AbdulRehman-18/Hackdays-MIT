@@ -148,7 +148,7 @@ def cmd_voice(a):
     return 0
 
 
-PLIST = Path.home() / "Library" / "LaunchAgents" / "dev.forge.assistant.plist"
+PLIST = Path.home() / "Library" / "LaunchAgents" / "dev.monday.assistant.plist"
 
 
 def cmd_login(a):
@@ -156,7 +156,7 @@ def cmd_login(a):
     if a.action == "uninstall":
         subprocess.run(["launchctl", "unload", str(PLIST)], capture_output=True)
         PLIST.unlink(missing_ok=True)
-        print("Forge will no longer start at login.")
+        print("Monday will no longer start at login.")
         return 0
     log = Path.home() / ".forge" / "forge.log"
     log.parent.mkdir(parents=True, exist_ok=True)
@@ -165,7 +165,7 @@ def cmd_login(a):
     PLIST.write_text(f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-  <key>Label</key><string>dev.forge.assistant</string>
+  <key>Label</key><string>dev.monday.assistant</string>
   <key>ProgramArguments</key><array><string>{sys.executable}</string><string>-m</string><string>forge</string><string>voice</string></array>
   <key>WorkingDirectory</key><string>{root}</string>
   <key>RunAtLoad</key><true/>
@@ -176,7 +176,7 @@ def cmd_login(a):
 """)
     subprocess.run(["launchctl", "unload", str(PLIST)], capture_output=True)
     subprocess.run(["launchctl", "load", str(PLIST)], check=False)
-    print(f"Forge will start at login (voice mode). Logs: {log}. Undo with: forge login uninstall")
+    print(f"Monday will start at login (voice mode). Logs: {log}. Undo with: monday login uninstall")
     return 0
 
 
@@ -387,7 +387,7 @@ def cmd_bench(a):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="forge", description="Forge: make open-weight models reliable on your device.")
+    p = argparse.ArgumentParser(prog="monday", description="Monday: your assistant on open-weight Gemma, on this Mac.")
     sub = p.add_subparsers(dest="cmd", required=True)
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--route", default=settings.route, choices=["local", "openai", "aistudio"])

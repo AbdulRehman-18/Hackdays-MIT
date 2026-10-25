@@ -1,5 +1,5 @@
 """Things Forge makes for you: study notes from a document, and spreadsheets scraped from a web page.
-Everything is written under ~/Documents/Forge Notes/ and opened when it is ready."""
+Everything is written under ~/Documents/Monday Notes/ and opened when it is ready."""
 import csv
 import datetime
 import re
@@ -17,7 +17,7 @@ from .mac import front_app, osa, q, run
 from .research import page_text
 from .web import UA
 
-NOTES = Path.home() / "Documents" / "Forge Notes"
+NOTES = Path.home() / "Documents" / "Monday Notes"
 CHROMIUM = ("Google Chrome", "Arc", "Brave Browser", "Microsoft Edge", "Chromium", "Vivaldi", "Opera")
 
 STUDY = """You are an expert tutor. Turn the document below into a complete Markdown study guide.
@@ -69,7 +69,7 @@ def study_notes(query: Annotated[str, Field(description="the document's name or 
     md = re.sub(r"^```(?:markdown)?\s*|\s*```$", "", md)
     NOTES.mkdir(parents=True, exist_ok=True)
     out = NOTES / f"{_slug(src.stem)} — Study Notes.md"
-    out.write_text(md + f"\n\n---\n*Made by Forge from `{src.name}` on {datetime.date.today():%d %B %Y}.*\n")
+    out.write_text(md + f"\n\n---\n*Made by Monday from `{src.name}` on {datetime.date.today():%d %B %Y}.*\n")
     run("open", str(out))
     return f"Study notes for {src.name} are ready and open: {out}"
 
@@ -95,7 +95,7 @@ SCRAPE_SCHEMA = {"type": "object", "properties": {
 def scrape(target: Annotated[str, Field(description="web address or site name; empty for the page on screen")] = "",
            what: Annotated[str, Field(description="the data to pull out, e.g. 'product names and prices'")]
            = "the main data as a table") -> str:
-    """Pull data off a web page into a spreadsheet (CSV) and a Markdown table, saved in Forge Notes."""
+    """Pull data off a web page into a spreadsheet (CSV) and a Markdown table, saved in Monday Notes."""
     import json
     url = target.strip() or front_tab_url()
     if not url.startswith("http"):

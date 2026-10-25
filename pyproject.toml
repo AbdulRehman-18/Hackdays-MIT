@@ -36,7 +36,8 @@ app = ["pywebview>=5"]
 voicelock = ["resemblyzer>=0.1.4", "noisereduce>=3", "librosa>=0.10", "torch>=2"]
 
 [project.scripts]
-forge = "forge.cli:main"
+monday = "forge.cli:main"
+forge = "forge.cli:main"  # the old name, kept working
 
 [tool.uv]
 # resemblyzer asks for webrtcvad (needs a compiler: webrtcvad-wheels ships the same module prebuilt) and the old

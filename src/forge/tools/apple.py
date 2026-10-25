@@ -116,7 +116,7 @@ def say_duration(sec: int) -> str:
 
 def _ring(name: str, th_ref: list):
     _timers[:] = [x for x in _timers if x[2] is not th_ref[0]]
-    notify("Forge timer", f"{name} timer is done!")
+    notify("Monday timer", f"{name} timer is done!")
     runtime.emit("timer", {"label": name, "say": f"Ding! Your {name} timer is done!"})
 
 

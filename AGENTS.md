@@ -1,11 +1,11 @@
-# Forge: Project Guide and Rules for AI Agents
+# Monday (open-weight edition): Project Guide and Rules for AI Agents
 
-Forge is two products on one harness, powered by Gemma 4 running on the Mac:
-- **Forge Studio**: "a proper Claude Code / Codex for Ollama". A desktop app with two modes: **Code** (a project
+Monday is two products on one harness, powered by Gemma 4 running on the Mac:
+- **Monday Studio**: "a proper Claude Code / Codex for Ollama". A desktop app with two modes: **Code** (a project
   folder: explore, edit with diffs, run commands, keep going until the tests pass) and **Computer** (Mac tasks:
   apps, web, files, reminders, the screen agent). It looks and feels like the Claude Code desktop app.
-- **The voice agent**: the owner's Monday assistant (`~/Developer/monday`) on open weights: "Hey Forge", Monday's
-  HUD, listening rules, voice and personality. **It is opt-in** ("Continue with voice agent" or `forge voice`) and
+- **The voice agent**: the owner's Monday assistant (`~/Developer/monday`) on open weights: "Hey Monday", Monday's
+  HUD, listening rules, voice and personality. **It is opt-in** ("Continue with voice agent" or `monday voice`) and
   never runs inside Studio on its own or interrupts a Studio task.
 
 **Any AI coding agent must read this file before changing code and follow section 10.**
@@ -17,14 +17,14 @@ Forge is two products on one harness, powered by Gemma 4 running on the Mac:
 ```bash
 uv sync --extra app                   # + --extra voicelock for the speaker lock
 cp .env.example .env
-uv run forge setup                    # pulls the Gemma models for this Mac and the Kokoro voice
-uv run forge doctor                   # hardware profile, models, permissions
-uv run forge app                      # Studio window + HUD + voice
-uv run forge voice                    # voice only: "Hey Forge" or a double clap
-uv run forge serve                    # Studio in the browser at http://127.0.0.1:8765
-uv run forge ask "weather in London and save it as a note"
-uv run forge run "open calculator and compute 25 times 4"   # the screen agent
-uv run forge enroll                   # voice lock (FORGE_VOICE_LOCK=1)
+uv run monday setup                    # pulls the Gemma models for this Mac and the Kokoro voice
+uv run monday doctor                   # hardware profile, models, permissions
+uv run monday app                      # Studio window + HUD + voice
+uv run monday voice                    # voice only: "Hey Monday" or a double clap
+uv run monday serve                    # Studio in the browser at http://127.0.0.1:8765
+uv run monday ask "weather in London and save it as a note"
+uv run monday run "open calculator and compute 25 times 4"   # the screen agent
+uv run monday enroll                   # voice lock (FORGE_VOICE_LOCK=1)
 ```
 
 macOS permissions for the terminal: Accessibility, Screen Recording, Microphone, Camera, Input Monitoring, and
@@ -68,14 +68,14 @@ Automation for Reminders, Calendar, Notes and the browser.
 | `src/forge/assistant/session.py` | the one session behind every face: chats, approvals, voice, model hub, keys |
 | `src/forge/assistant/voice.py`, `voiceprint.py`, `enroll.py` | Monday's listening engine, Kokoro voice, speaker lock |
 | `src/forge/assistant/hud_native.py` | Monday's HUD host: transparent click-through window, 60 fps `H.*` feed, key monitor |
-| `src/forge/assistant/static/hud.html` | **Monday's HUD, byte for byte** (only the title and one demo caption say Forge) |
-| `src/forge/assistant/static/` (other files) | Forge Studio (`index.html`, `style.css`, `app.js`, `pages.js`, `md.js`): sessions, Code / Computer, activity feed, diffs, permissions, Models, Skills, Evals, Train, Settings |
+| `src/forge/assistant/static/hud.html` | **Monday's HUD, byte for byte** (only the title and one demo caption say Monday) |
+| `src/forge/assistant/static/` (other files) | Monday Studio (`index.html`, `style.css`, `app.js`, `pages.js`, `md.js`): sessions, Code / Computer, activity feed, diffs, permissions, Models, Skills, Evals, Train, Settings |
 | `src/forge/tools/code.py` | Code mode: workspace tools, orientation, finish check, edit previews |
 | `docs/studio-protocol.md` | the Studio ↔ server contract (REST + WebSocket events) |
 | `src/forge/assistant/server.py` | 127.0.0.1 server: Studio, REST API, one event WebSocket |
 | `src/forge/tools/` | device tools: apps, web, research, files, Apple apps and timers, system, media, senses, screen, AX |
 | `skills/` | Agent Skills (agentskills.io), loaded on demand |
-| `training/`, `evals/` | fine-tuning on Forge's own traces; benchmark results |
+| `training/`, `evals/` | fine-tuning on Monday's own traces; benchmark results |
 
 ---
 
@@ -99,13 +99,13 @@ real UI, added `Cart.discount()` with a test and ran the tests (49 s, exit 0).
 ## 5. Listening, personality and voice
 
 Monday's rules, unchanged (see `monday/AGENTS.md` sections 5 and 6 for the reasons):
-- A command needs "Hey Forge", a double clap, or the conversation window (`FORGE_CONVERSE_S`, 8 s after a reply,
-  and while Forge works or talks). Speech is detected with webrtcvad and a room-noise floor, not loudness; Whisper
+- A command needs "Hey Monday", a double clap, or the conversation window (`FORGE_CONVERSE_S`, 8 s after a reply,
+  and while Monday works or talks). Speech is detected with webrtcvad and a room-noise floor, not loudness; Whisper
   pieces with low confidence are dropped; while busy, a phrase needs two real words or a stop word; the same
   command within 20 s without the wake word is ignored; unfinished sentences wait `FORGE_FINISH_S`.
-- The mic stays open while Forge talks, so its own words are filtered out (numbers normalised).
-- Space tapped while Forge works or talks interrupts and listens; Esc stops everything. Both are ignored while
-  Forge sends its own keys (`runtime.self_typing`). Right Option held is push-to-talk.
+- The mic stays open while Monday talks, so its own words are filtered out (numbers normalised).
+- Space tapped while Monday works or talks interrupts and listens; Esc stops everything. Both are ignored while
+  Monday sends its own keys (`runtime.self_typing`). Right Option held is push-to-talk.
 - Personality: cute, cheerful, bubbly and warm, smart like JARVIS, never sarcastic. Spoken replies are 1-2 short
   sentences, no markdown, no lists, no emojis. It lives in `harness/chat.py` (`ANSWER`, `STYLE["voice"]`).
 - Voice: Kokoro (82M, on device), `af_bella*0.6+af_sky*0.4` at 1.12. Speech: Whisper small.en on the Apple GPU
@@ -124,7 +124,7 @@ Monday's rules, unchanged (see `monday/AGENTS.md` sections 5 and 6 for the reaso
   (Allow once / Always allow in this session / Deny), a status line ("✻ Working… 12s · Esc to interrupt").
   No gradients, glows, glass or orbs in Studio; no purple; system font plus monospace; no CDNs (works offline).
   The protocol is `docs/studio-protocol.md`; `#/demo` replays a scripted session.
-- Forge's cursor is drawn in the HUD; the user's real cursor is never hidden or recoloured, and every click
+- Monday's cursor is drawn in the HUD; the user's real cursor is never hidden or recoloured, and every click
   borrows it and puts it back exactly (`tools/screen.py` `borrow`).
 
 ---
@@ -147,8 +147,8 @@ Light by default (owner: no heavy models); 12B QAT and 26B A4B are optional pick
 
 All settings are in `.env.example`, with their defaults and meaning. Routes: `FORGE_ROUTE=local` (Ollama),
 `openai` (`FORGE_OPENAI_URL`, `FORGE_OPENAI_MODEL`: Ollama `/v1`, llama.cpp, LM Studio, MLX) or `aistudio`.
-Files Forge writes: `~/.forge/` (settings, chats, traces, uploads, models, voiceprint, logs) and
-`~/Documents/Forge Notes/` (study notes, scrapes).
+Files Monday writes: `~/.forge/` (settings, chats, traces, uploads, models, voiceprint, logs) and
+`~/Documents/Monday Notes/` (study notes, scrapes).
 
 ---
 
@@ -191,7 +191,7 @@ Files Forge writes: `~/.forge/` (settings, chats, traces, uploads, models, voice
 ### Testing (before saying "done")
 - `uv run ruff check src tests` and `uv run pytest -q` (no model needed);
   `FORGE_SLOW_TESTS=1 uv run pytest -q tests/test_voice.py` runs real Whisper on a synthetic noisy room.
-- Model behaviour: run the compound-request probe or `uv run forge bench` on the real model and report numbers.
+- Model behaviour: run the compound-request probe or `uv run monday bench` on the real model and report numbers.
 - Do not create real reminders, notes, messages or purchases while testing; stub the tools.
 - Report honestly what was and was not tested (for example the live microphone, or the screen agent on screen).
 
@@ -206,7 +206,7 @@ Files Forge writes: `~/.forge/` (settings, chats, traces, uploads, models, voice
 
 | Decision | Reason |
 |---|---|
-| Forge = Monday on Gemma | owner: "make sure Monday has been copied exactly", on open weights for the hackathon |
+| Monday on Gemma, named Monday | owner: "make sure Monday has been copied exactly"; later "name it MONDAY itself, no need for Forge" |
 | Studio = Claude Code desktop, Code + Computer | owner rejected a glassy chat clone: "I want a proper Claude Code desktop like feel" |
 | Voice agent opt-in, own task slot | voice mode always on inside Studio cancelled typed tasks ("it is stopping every time") |
 | Whisper small.en default | owner: light and fast, no heavy models; Monday's filters (VAD, confidence) handle the noise |
@@ -216,4 +216,4 @@ Files Forge writes: `~/.forge/` (settings, chats, traces, uploads, models, voice
 | Compound requests skip LOCAL and router | "weather in London and save it as a note" was answered with the weather only |
 | One decision core with focused repair | two loops had drifted apart; wrong arguments are fixed against that tool's schema only |
 | Hardware profiles | e4b plus a second model does not fit a 16 GB Mac: Ollama swapped them and dropped connections |
-| HUD ignores Forge's own keys | the agent typing a space would otherwise interrupt its own task |
+| HUD ignores Monday's own keys | the agent typing a space would otherwise interrupt its own task |

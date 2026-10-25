@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<title>Forge Studio</title>
+<title>Monday Studio</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a6cff'/%3E%3Cpath d='M10 9h12M10 9v14M10 16h8' stroke='%23fff' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/style.css">
 <script>try { const t = localStorage.getItem("forge-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
@@ -57,7 +57,7 @@
   <!-- ============ sidebar ============ -->
   <aside class="side" id="side" aria-label="Sessions">
     <div class="side-top">
-      <a class="brand" href="#/" aria-label="Forge Studio, new session"><span class="logo" aria-hidden="true">F</span><b>Forge</b></a>
+      <a class="brand" href="#/" aria-label="Monday Studio, new session"><span class="logo" aria-hidden="true">M</span><b>Monday</b></a>
       <button class="icon-btn" id="side-close" aria-label="Hide sidebar" data-tip="Hide sidebar"><svg><use href="#i-panel"/></svg></button>
     </div>
     <a href="#/" class="side-new" id="side-new"><svg><use href="#i-plus"/></svg><span>New session</span><kbd>⌘K</kbd></a>
@@ -105,7 +105,7 @@
           <div class="mention-menu menu" id="mention" role="listbox" hidden></div>
           <form class="composer" id="composer" autocomplete="off">
             <div class="atts" id="atts" hidden></div>
-            <textarea id="input" rows="1" placeholder="Ask Forge to build, fix or explain something…" aria-label="Message Forge"></textarea>
+            <textarea id="input" rows="1" placeholder="Ask Monday to build, fix or explain something…" aria-label="Message Monday"></textarea>
             <div class="comp-row">
               <button type="button" class="icon-btn sm" id="attach-btn" aria-label="Attach files" data-tip="Attach files"><svg><use href="#i-clip"/></svg></button>
               <input type="file" id="file-input" multiple hidden>
@@ -116,8 +116,8 @@
               <div class="pop">
                 <button type="button" class="chip" id="perm-btn" aria-haspopup="menu" aria-expanded="false"><svg><use href="#i-shield"/></svg><span id="perm-text">Ask before acting</span><svg class="chev"><use href="#i-chev"/></svg></button>
                 <div class="menu menu-up" id="perm-menu" role="menu" hidden>
-                  <button role="menuitemradio" data-approve="ask"><b>Ask before acting</b><span>Forge asks before edits, commands and risky actions.</span></button>
-                  <button role="menuitemradio" data-approve="auto"><b>Auto-approve</b><span>Forge acts without asking. Dangerous commands stay blocked.</span></button>
+                  <button role="menuitemradio" data-approve="ask"><b>Ask before acting</b><span>Monday asks before edits, commands and risky actions.</span></button>
+                  <button role="menuitemradio" data-approve="auto"><b>Auto-approve</b><span>Monday acts without asking. Dangerous commands stay blocked.</span></button>
                 </div>
               </div>
               <span class="grow"></span>

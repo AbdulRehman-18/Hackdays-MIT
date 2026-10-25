@@ -1,4 +1,4 @@
-# Forge Studio ↔ server protocol
+# Monday Studio ↔ server protocol
 
 Studio is a single-page app served from `src/forge/assistant/static/` by `server.py` (127.0.0.1 only). Flat files
 only (`/static/<name>`), no CDNs, no web fonts: it must work offline.
@@ -7,7 +7,7 @@ only (`/static/<name>`), no CDNs, no web fonts: it must work offline.
 
 Every chat ("session") has a `mode` and, in Code mode, a `workspace`:
 
-| mode | what Forge can do |
+| mode | what Monday can do |
 |---|---|
 | `code` | work inside `workspace` (a project folder): `list_files`, `search_code`, `read_file`, `write_file`, `edit_file`, `run_command`. Runs autonomously (up to 40 steps) until it calls done. |
 | `computer` | Mac tasks: apps, web search and pages, news, weather, files, Apple Reminders / Notes / Calendar, timers, screen reading, webcam, and `computer_use` (the screen agent clicks and types). |

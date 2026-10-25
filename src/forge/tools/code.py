@@ -25,9 +25,16 @@ ACTION = re.compile(r"\b(fix|add|implement|change|update|refactor|rename|remove|
                     r"improve|optimi[sz]e|convert|migrate|move|replace|upgrade|support)\b", re.I)
 
 
+LOOKS = ("list_files", "search_code", "read_file")
+
+
 def finish_check(steps: list[dict], request: str) -> str:
     """Code mode refuses to finish too early: a note for the model, or "" when it may respond.
-    It may not stop while the last check it ran is failing, nor after only describing a change it was asked to make."""
+    It may not answer about the project without reading it, stop while the last check it ran is failing, or stop
+    after only describing a change it was asked to make."""
+    if not any(s["tool"] in LOOKS for s in steps) and not ACTION.search(request):
+        return ("Look at the project before you answer: read the README and the main source files from the file "
+                "list with read_file (and search_code if needed). Do not answer from the file names alone.")
     edits = [i for i, s in enumerate(steps) if s["tool"] in ("edit_file", "write_file") and s.get("status") == "ok"]
     runs = [i for i, s in enumerate(steps) if s["tool"] == "run_command" and s.get("status") != "denied"]
     if runs and steps[runs[-1]].get("exit_code", 0) != 0 and (not edits or edits[-1] < runs[-1]):
@@ -309,10 +316,15 @@ def orientation(root: Path) -> str:
     except (OSError, subprocess.SubprocessError):
         st = ""
     test = test_command(root)
+    readme = next((p for p in (root / "README.md", root / "readme.md", root / "README") if p.is_file()), None)
+    intro = ""
+    if readme:
+        lines = readme.read_text(errors="replace").splitlines()[:30]
+        intro = f"\nStart of {readme.name}:\n" + "\n".join(f"  | {ln}" for ln in lines)
     return (f"Project files ({len(files)}{'+' if len(files) == 120 else ''}):\n" + "\n".join(f"  {f}" for f in files)
             + (f"\nUncommitted changes:\n{st}" if st else "\nGit: no uncommitted changes." if (root / ".git").exists()
                else "")
-            + (f"\nRun the tests with: {test}" if test else ""))
+            + (f"\nRun the tests with: {test}" if test else "") + intro)
 
 
 GUIDE = """You are working in the project folder {root}{branch}. Work like a careful senior engineer:
