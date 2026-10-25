@@ -131,7 +131,7 @@ def cmd_app(a):
     if sys.platform == "win32":  # the HUD is a second, small window next to Studio (no AppKit here)
         from .assistant import hud_win
         studio = webview.create_window(f"{settings.name} Studio", base, width=1360, height=880, min_size=(760, 560),
-                                       background_color="#07090d")
+                                       background_color="#1f1f1f", text_select=True)
         hud = webview.create_window(**hud_win.window_args())
         studio.events.closed += lambda: hud.destroy()  # the HUD must not keep the app alive
 
@@ -140,12 +140,19 @@ def cmd_app(a):
         webview.start(add_win_hud)
         return 0
 
+    from .assistant import window_native
+    window = webview.create_window(f"{settings.name} Studio", f"{base}/?native=1", width=1360, height=880,
+                                   min_size=(760, 560), background_color="#1f1f1f", text_select=True)
+
+    def on_loaded():
+        from PyObjCTools import AppHelper
+        AppHelper.callAfter(window_native.style, window)
+    window.events.loaded += on_loaded
+
     def add_hud():
         from PyObjCTools import AppHelper
         session = hud_native.wait_for_session()
         AppHelper.callAfter(hud_native.create, session, session.prefs.hud_mode)
-    webview.create_window(f"{settings.name} Studio", base, width=1360, height=880, min_size=(760, 560),
-                          background_color="#07090d")
     webview.start(add_hud)
     return 0
 

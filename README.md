@@ -1,4 +1,4 @@
-# Monday
+# M.O.N.D.A.Y
 
 **A harness that makes open-weight models like Gemma reliable at real tasks on your own computer.**
 

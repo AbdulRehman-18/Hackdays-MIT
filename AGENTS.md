@@ -118,12 +118,18 @@ Monday's rules, unchanged (see `monday/AGENTS.md` sections 5 and 6 for the reaso
 - **HUD**: `static/hud.html` is Monday's file. Its design system is `monday/AGENTS.md` section 7 (glass orb and
   wisps, light rising from the orb, captions, Dynamic Island, the doodle cursor). Never edit it except to keep it
   identical to Monday's. The window must stay hidden from screenshots and click-through.
-- **Studio**: the Claude Code desktop feel: calm neutral light and dark themes, one accent (blue `#0a6cff`),
-  green / red / orange only for diffs and status; compact activity rows ("Read src/app.py", "Edit +4 −0",
-  "Run $ pytest exit 0") that expand to diffs and output, a live todo plan, inline permission prompts
-  (Allow once / Always allow in this session / Deny), a status line ("✻ Working… 12s · Esc to interrupt").
-  No gradients, glows, glass or orbs in Studio; no purple; system font plus monospace; no CDNs (works offline).
-  The protocol is `docs/studio-protocol.md`; `#/demo` replays a scripted session.
+- **Studio**: the Codex / ChatGPT desktop-app look (owner's reference screenshots, 2026-10-25). Sidebar: New
+  session, Search, Skills, Models; "Projects" with each Code folder and its sessions nested underneath ("In progress"
+  or "4h"), a "Computer" group, Settings at the bottom. In the app window the title bar is transparent, the traffic
+  lights sit in the sidebar and the sidebar shows macOS's frosted material (`assistant/window_native.py`, page flag
+  `?native=1`). Start screen: a centered mark and "Let's build · <project> ⌄" (Code) or "What should we work on?"
+  (Computer), one big rounded composer (+, "Ask for approval", model, hold-to-dictate mic, round send), a tray under
+  it (project, branch, Voice agent) and three suggestion cards. A Code | Computer pill sits top centre. Inside a
+  session: compact activity rows that expand to diffs and output, a live todo plan, inline permission prompts
+  (Allow once / Always allow in this session / Deny), a status line. Neutral light and dark themes, one accent
+  (blue `#0a6cff`) used sparingly, green / red / orange only for diffs and status; system font, monospace only for
+  paths, commands and code; no purple, no CDNs (works offline). Protocol: `docs/studio-protocol.md`; `#/demo`
+  replays a scripted session.
 - Monday's cursor is drawn in the HUD; the user's real cursor is never hidden or recoloured, and every click
   borrows it and puts it back exactly (`tools/screen.py` `borrow`).
 
@@ -208,6 +214,8 @@ Files Monday writes: `~/.forge/` (settings, chats, traces, uploads, models, voic
 |---|---|
 | Monday on Gemma, named Monday | owner: "make sure Monday has been copied exactly"; later "name it MONDAY itself, no need for Forge" |
 | Studio = Claude Code desktop, Code + Computer | owner rejected a glassy chat clone: "I want a proper Claude Code desktop like feel" |
+| Studio restyled after the Codex / ChatGPT apps | owner shared Codex and ChatGPT "Work" screenshots: projects with nested sessions, centered composer, tray, cards |
+| Studio window: text selection on | pywebview disables it by default; answers could not be copied |
 | Voice agent opt-in, own task slot | voice mode always on inside Studio cancelled typed tasks ("it is stopping every time") |
 | Whisper small.en default | owner: light and fast, no heavy models; Monday's filters (VAD, confidence) handle the noise |
 | Code-mode orientation + finish_check | without them Gemma ran `test`, invented files, or described a fix instead of making it |

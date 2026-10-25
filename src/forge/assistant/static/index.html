@@ -49,6 +49,16 @@
     <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.4 3.4 8.2 8 9 4.6-.8 8-4.6 8-9V6Z"/></symbol>
     <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></symbol>
     <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z"/><path d="M4 19V5"/></symbol>
+    <symbol id="i-folder-open" viewBox="0 0 24 24"><path d="M3 18V6a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v2"/><path d="M3 18 5.5 11a2 2 0 0 1 1.9-1.4H20a1.5 1.5 0 0 1 1.4 2L19 18.6a2 2 0 0 1-1.9 1.4H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9Z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></symbol>
+    <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 10V4.5a1.5 1.5 0 0 1 3 0V11M14 10.5V6a1.5 1.5 0 0 1 3 0v7c0 4.4-2.6 8-7 8-3 0-4.6-1.6-6-4l-1.6-2.8a1.5 1.5 0 0 1 2.5-1.6L8 15"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6Z"/></symbol>
+    <symbol id="i-bug" viewBox="0 0 24 24"><rect x="8" y="6" width="8" height="14" rx="4"/><path d="M9 6a3 3 0 0 1 6 0M3 13h5M16 13h5M4 8l4 2M20 8l-4 2M4 19l4-2M20 19l-4-2"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.4A8 8 0 1 1 21 12Z"/></symbol>
+    <symbol id="i-mark" viewBox="0 0 32 32"><path d="M8 23V9.5l8 8.5 8-8.5V23" stroke-width="2.6"/></symbol>
     <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
   </defs>
 </svg>
@@ -56,41 +66,47 @@
 <div class="app" id="app">
   <!-- ============ sidebar ============ -->
   <aside class="side" id="side" aria-label="Sessions">
-    <div class="side-top">
-      <a class="brand" href="#/" aria-label="Monday Studio, new session"><span class="logo" aria-hidden="true">M</span><b>Monday</b></a>
+    <div class="side-head pywebview-drag-region">
+      <span class="grow pywebview-drag-region"></span>
       <button class="icon-btn" id="side-close" aria-label="Hide sidebar" data-tip="Hide sidebar"><svg><use href="#i-panel"/></svg></button>
     </div>
-    <a href="#/" class="side-new" id="side-new"><svg><use href="#i-plus"/></svg><span>New session</span><kbd>⌘K</kbd></a>
-    <label class="side-search"><svg><use href="#i-search"/></svg><input id="side-search" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
+    <nav class="side-nav" aria-label="Main">
+      <a href="#/" class="nav-item" id="side-new"><svg><use href="#i-new"/></svg><span>New session</span><kbd>⌘K</kbd></a>
+      <button class="nav-item" id="side-search-btn" type="button" aria-expanded="false"><svg><use href="#i-search"/></svg><span>Search</span></button>
+      <label class="side-search" id="side-search-box" hidden><svg><use href="#i-search"/></svg><input id="side-search" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
+      <a href="#/skills" class="nav-item" data-nav="skills"><svg><use href="#i-cube"/></svg><span>Skills</span></a>
+      <a href="#/models" class="nav-item" data-nav="models"><svg><use href="#i-chip"/></svg><span>Models</span></a>
+    </nav>
     <nav class="sessions" id="sessions" aria-label="Sessions"></nav>
     <div class="side-foot">
-      <nav class="side-links" aria-label="Pages">
-        <a href="#/models" data-nav="models"><svg><use href="#i-chip"/></svg>Models</a>
-        <a href="#/skills" data-nav="skills"><svg><use href="#i-sparkle"/></svg>Skills</a>
-        <a href="#/evals" data-nav="evals"><svg><use href="#i-chart"/></svg>Evals</a>
-        <a href="#/train" data-nav="train"><svg><use href="#i-flask"/></svg>Train</a>
-        <a href="#/settings" data-nav="settings"><svg><use href="#i-gear"/></svg>Settings</a>
-      </nav>
-      <div class="side-status" id="side-status" aria-live="polite"><span class="dot" id="status-dot"></span><span class="st-text"><b id="status-model">Connecting…</b><span id="status-sub">Ollama</span></span></div>
+      <a href="#/settings" class="nav-item" data-nav="settings"><svg><use href="#i-gear"/></svg><span>Settings</span></a>
+      <div class="side-status" id="side-status" aria-live="polite">
+        <span class="dot" id="status-dot"></span><span class="st-text"><b id="status-model">Connecting…</b><span id="status-sub">Ollama</span></span>
+        <span class="grow"></span>
+        <a href="#/evals" class="mini-link" data-nav="evals" data-tip="Evals"><svg><use href="#i-chart"/></svg></a>
+        <a href="#/train" class="mini-link" data-nav="train" data-tip="Train"><svg><use href="#i-flask"/></svg></a>
+      </div>
     </div>
   </aside>
   <div class="scrim" id="scrim" hidden></div>
 
   <!-- ============ main ============ -->
   <main class="main" id="main">
-    <header class="top">
+    <header class="top pywebview-drag-region">
       <button class="icon-btn" id="side-open" aria-label="Show sidebar" data-tip="Show sidebar"><svg><use href="#i-panel"/></svg></button>
-      <div class="crumbs" id="crumbs">
-        <span class="title" id="top-title">New session</span>
-        <span class="badge" id="top-mode" hidden></span>
+      <div class="crumbs pywebview-drag-region" id="crumbs">
+        <span class="title" id="top-title"></span>
         <span class="ws" id="top-ws" hidden></span>
       </div>
-      <span class="grow"></span>
-      <button class="voice-pill" id="voice-pill" hidden aria-label="Voice agent on. Stop it"><span class="live-dot"></span>Voice agent on<span class="sep">·</span><b>Stop</b></button>
-      <div class="ctx" id="ctx" data-tip="Context used" hidden><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" class="trk"/><circle cx="10" cy="10" r="8" class="val" id="ctx-ring"/></svg><span id="ctx-text"></span></div>
-      <div class="pop">
-        <button class="model-btn" id="model-btn" aria-haspopup="menu" aria-expanded="false"><span class="dot" id="model-dot"></span><span id="model-name">Model</span><svg class="chev"><use href="#i-chev"/></svg></button>
-        <div class="menu menu-right" id="model-menu" role="menu" hidden></div>
+      <div class="top-center">
+        <div class="seg seg-top" id="mode-seg" role="radiogroup" aria-label="Mode">
+          <button type="button" role="radio" data-mode="code" aria-checked="true">Code</button>
+          <button type="button" role="radio" data-mode="computer" aria-checked="false">Computer</button>
+        </div>
+      </div>
+      <div class="top-right">
+        <button class="voice-pill" id="voice-pill" hidden aria-label="Voice agent on. Stop it"><span class="live-dot"></span>Voice agent on<span class="sep">·</span><b>Stop</b></button>
+        <div class="ctx" id="ctx" data-tip="Context used" hidden><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" class="trk"/><circle cx="10" cy="10" r="8" class="val" id="ctx-ring"/></svg><span id="ctx-text"></span></div>
       </div>
     </header>
 
@@ -105,26 +121,36 @@
           <div class="mention-menu menu" id="mention" role="listbox" hidden></div>
           <form class="composer" id="composer" autocomplete="off">
             <div class="atts" id="atts" hidden></div>
-            <textarea id="input" rows="1" placeholder="Ask Monday to build, fix or explain something…" aria-label="Message Monday"></textarea>
+            <textarea id="input" rows="1" placeholder="Ask Monday anything, @ to add files" aria-label="Message Monday"></textarea>
             <div class="comp-row">
-              <button type="button" class="icon-btn sm" id="attach-btn" aria-label="Attach files" data-tip="Attach files"><svg><use href="#i-clip"/></svg></button>
+              <button type="button" class="icon-btn round" id="attach-btn" aria-label="Attach files" data-tip="Attach files"><svg><use href="#i-plus"/></svg></button>
               <input type="file" id="file-input" multiple hidden>
-              <div class="seg" id="mode-seg" role="radiogroup" aria-label="Mode">
-                <button type="button" role="radio" data-mode="code" aria-checked="true"><svg><use href="#i-code"/></svg>Code</button>
-                <button type="button" role="radio" data-mode="computer" aria-checked="false"><svg><use href="#i-monitor"/></svg>Computer</button>
-              </div>
               <div class="pop">
-                <button type="button" class="chip" id="perm-btn" aria-haspopup="menu" aria-expanded="false"><svg><use href="#i-shield"/></svg><span id="perm-text">Ask before acting</span><svg class="chev"><use href="#i-chev"/></svg></button>
+                <button type="button" class="chip" id="perm-btn" aria-haspopup="menu" aria-expanded="false"><svg><use href="#i-hand"/></svg><span id="perm-text">Ask for approval</span></button>
                 <div class="menu menu-up" id="perm-menu" role="menu" hidden>
-                  <button role="menuitemradio" data-approve="ask"><b>Ask before acting</b><span>Monday asks before edits, commands and risky actions.</span></button>
+                  <button role="menuitemradio" data-approve="ask"><b>Ask for approval</b><span>Monday asks before edits, commands and risky actions.</span></button>
                   <button role="menuitemradio" data-approve="auto"><b>Auto-approve</b><span>Monday acts without asking. Dangerous commands stay blocked.</span></button>
                 </div>
               </div>
               <span class="grow"></span>
-              <span class="hint" id="comp-hint"></span>
+              <div class="pop">
+                <button type="button" class="chip model-btn" id="model-btn" aria-haspopup="menu" aria-expanded="false"><span class="dot" id="model-dot"></span><span id="model-name">Model</span><svg class="chev"><use href="#i-chev"/></svg></button>
+                <div class="menu menu-up menu-right-up" id="model-menu" role="menu" hidden></div>
+              </div>
+              <button type="button" class="icon-btn round" id="mic-btn" aria-label="Hold to dictate" data-tip="Hold to dictate"><svg><use href="#i-mic"/></svg></button>
               <button type="submit" class="send" id="send-btn" aria-label="Send"><svg><use href="#i-up"/></svg></button>
             </div>
           </form>
+          <div class="tray" id="tray">
+            <div class="pop" id="proj-pop">
+              <button type="button" class="tray-btn" id="proj-btn" aria-haspopup="menu" aria-expanded="false"><svg><use href="#i-folder"/></svg><span id="proj-text">Choose project</span><svg class="chev"><use href="#i-chev"/></svg></button>
+              <div class="menu menu-up" id="proj-menu" role="menu" hidden></div>
+            </div>
+            <span class="tray-btn static" id="branch-chip" hidden><svg><use href="#i-branch"/></svg><span id="branch-text"></span></span>
+            <span class="grow"></span>
+            <button type="button" class="tray-btn" id="voice-btn"><svg><use href="#i-wave"/></svg><span id="voice-text">Voice agent</span></button>
+          </div>
+          <div class="cards-row" id="suggest" aria-label="Suggestions"></div>
         </div>
       </div>
     </section>
