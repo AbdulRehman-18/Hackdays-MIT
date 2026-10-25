@@ -121,3 +121,28 @@ def test_pushback_note_reaches_the_model_without_a_plan(ws):
     ChatAgent(b, code.workspace_tools(ws), approve=lambda a, v: True, plan=False,
               finish_check=code.finish_check).run([], Turn("user", "fix it"))
     assert "The last command failed" in b.prompts[2]
+
+
+def test_commands_use_the_systems_own_shell(monkeypatch, tmp_path):
+    monkeypatch.setattr(code, "_windows", lambda: True)
+    pwsh = r"C:\Program Files\PowerShell\7\pwsh.exe"
+    monkeypatch.setattr(code.shutil, "which", lambda name: pwsh if name == "pwsh" else None)
+    argv, name = code.shell()
+    assert name == "PowerShell" and argv[0].endswith("pwsh.exe") and argv[-1] == "-Command"
+    assert code.python() == "python"
+    (tmp_path / "test_x.py").write_text("def test_x(): pass\n")
+    (tmp_path / ".venv" / "Scripts").mkdir(parents=True)
+    (tmp_path / ".venv" / "Scripts" / "pytest.exe").write_text("")
+    assert code.test_command(tmp_path) == str(code.Path(".venv") / "Scripts" / "pytest.exe") + " -q"
+
+    monkeypatch.setattr(code, "_windows", lambda: False)
+    monkeypatch.setenv("SHELL", "/no/such/shell")
+    argv, name = code.shell()
+    assert code.Path(argv[0]).exists() and name in ("zsh", "bash", "sh")  # falls back to a real shell
+
+
+def test_windows_read_only_commands_run_without_asking(ws):
+    t, p = tools(ws), Policy()
+    for cmd in ("dir", "Get-ChildItem src", "get-content README.md", "type app.py"):
+        assert p.check(Action("run_command", {"command": cmd}), t["run_command"]).decision == "allow", cmd
+    assert p.check(Action("run_command", {"command": "Remove-Item x"}), t["run_command"]).decision == "confirm"

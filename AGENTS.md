@@ -82,8 +82,8 @@ Automation for Reminders, Calendar, Notes and the browser.
 ## 4. Code mode (Studio)
 
 `tools/code.py`: `list_files`, `search_code` (ripgrep), `read_file` (numbered), `edit_file` (exact, unique
-old_text; indentation of copied text is matched), `write_file`, `run_command` (zsh login shell in the project, no
-colours, timeout). Paths cannot leave the project. Before the first step the model gets the file list, git status
+old_text; indentation of copied text is matched), `write_file`, `run_command` (PowerShell on Windows, the user's login
+shell on macOS and Linux; in the project, no colours, timeout). Paths cannot leave the project. Before the first step the model gets the file list, git status
 and a test command that is checked to work (`orientation`). The loop (`ChatAgent`, up to `FORGE_CODE_MAX_STEPS`=40)
 will not finish while the last command failed with no fix since, after editing without re-checking, or after only
 describing a requested change (`finish_check`, two push-backs). A repeated call only counts while nothing changed;

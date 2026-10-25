@@ -7,6 +7,7 @@ that is not plainly read-only."""
 import difflib
 import fnmatch
 import os
+import platform
 import re
 import shutil
 import subprocess
@@ -47,6 +48,26 @@ def finish_check(steps: list[dict], request: str) -> str:
         return ("You changed files but have not checked the result since. Run the tests (or a quick command that "
                 "uses the change) with run_command before you finish.")
     return ""
+
+
+def _windows() -> bool:
+    return os.name == "nt"
+
+
+def shell() -> tuple[list[str], str]:
+    """(command prefix, name) of the shell run_command uses: PowerShell on Windows; elsewhere the user's own login
+    shell (zsh, bash...), falling back to sh, so commands behave like they do in the user's terminal."""
+    if _windows():
+        exe = shutil.which("pwsh") or shutil.which("powershell") or "powershell"
+        return [exe, "-NoProfile", "-NonInteractive", "-Command"], "PowerShell"
+    sh = os.environ.get("SHELL", "")
+    if not (sh and Path(sh).exists()):
+        sh = next((s for s in ("/bin/zsh", "/bin/bash", "/bin/sh") if Path(s).exists()), "/bin/sh")
+    return [sh, "-lc" if Path(sh).name in ("zsh", "bash") else "-c"], Path(sh).name
+
+
+def python() -> str:
+    return "python" if _windows() else "python3"
 
 
 def branch(root: Path) -> str:
@@ -252,11 +273,12 @@ def workspace_tools(root: Path) -> list[Tool]:
         return {"text": f"{verb} {rel(p)} (+{a} -{d})", "diff": diff, "path": rel(p)}
 
     @tool(group="code", risk="command")
-    def run_command(command: Annotated[str, Field(description="shell command, run in the project folder")],
+    def run_command(command: Annotated[str, Field(description="terminal command, run in the project folder "
+                                                              "(PowerShell on Windows, the login shell elsewhere)")],
                     timeout: Annotated[int, Field(description="seconds before it stops, max 600")] = 120) -> str:
         """Run a terminal command in the project (tests, builds, git, scripts). Returns its output and exit code."""
         try:
-            r = subprocess.run(["/bin/zsh", "-lc", command], cwd=root, capture_output=True, text=True,
+            r = subprocess.run([*shell()[0], command], cwd=root, capture_output=True, text=True,
                                timeout=max(1, min(600, timeout)), stdin=subprocess.DEVNULL,
                                env={**os.environ, "NO_COLOR": "1", "TERM": "dumb", "PY_COLORS": "0", "CI": "1"})
             out, code = ANSI.sub("", r.stdout + ("\n" + r.stderr if r.stderr else "")).strip(), r.returncode
@@ -273,7 +295,7 @@ def workspace_tools(root: Path) -> list[Tool]:
 def _works(root: Path, command: str) -> bool:
     """Whether a command succeeds in the same login shell run_command uses."""
     try:
-        return subprocess.run(["/bin/zsh", "-lc", command], cwd=root, capture_output=True, timeout=10).returncode == 0
+        return subprocess.run([*shell()[0], command], cwd=root, capture_output=True, timeout=10).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
 
@@ -296,12 +318,13 @@ def test_command(root: Path) -> str:
     if has_py_tests or (root / "pytest.ini").is_file() or (root / "pyproject.toml").is_file():
         if (root / "uv.lock").is_file():
             return "uv run pytest -q"
+        bindir, exe = ("Scripts", "pytest.exe") if _windows() else ("bin", "pytest")
         for venv in (".venv", "venv"):
-            if (root / venv / "bin" / "pytest").exists():
-                return f"{venv}/bin/pytest -q"
-        if _works(root, "python3 -c 'import pytest'"):
-            return "python3 -m pytest -q"
-        return "uvx pytest -q" if shutil.which("uvx") else "python3 -m pytest -q"
+            if (root / venv / bindir / exe).exists():
+                return str(Path(venv) / bindir / exe) + " -q"
+        if _works(root, f"{python()} -c 'import pytest'"):
+            return f"{python()} -m pytest -q"
+        return "uvx pytest -q" if shutil.which("uvx") else f"{python()} -m pytest -q"
     if (root / "Makefile").is_file():
         return "make test"
     return ""
@@ -324,6 +347,7 @@ def orientation(root: Path) -> str:
     return (f"Project files ({len(files)}{'+' if len(files) == 120 else ''}):\n" + "\n".join(f"  {f}" for f in files)
             + (f"\nUncommitted changes:\n{st}" if st else "\nGit: no uncommitted changes." if (root / ".git").exists()
                else "")
+            + f"\nSystem: {platform.system() or 'unknown'}. run_command uses {shell()[1]}: write commands for it."
             + (f"\nRun the tests with: {test}" if test else "") + intro)
 
 

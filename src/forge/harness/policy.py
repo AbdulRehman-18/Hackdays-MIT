@@ -15,7 +15,9 @@ DANGEROUS_TEXT = re.compile(r"rm\s+-[a-z]*[rf]|sudo\s|mkfs|dd\s+if=|:\(\)\s*\{|c
                             r"|diskutil\s+erase", re.I)
 # a command that can only look: runs without asking (no redirection, chaining or substitution)
 READ_ONLY = re.compile(r"^\s*(?:ls|pwd|cat|head|tail|wc|grep|rg|find|tree|file|stat|du|which|echo|date|whoami|uname"
-                       r"|git\s+(?:status|diff|log|show|branch|remote -v|rev-parse|ls-files|blame))\b[^;&|<>`$]*$")
+                       r"|dir|type|where|gci|gc|Get-ChildItem|Get-Content|Get-Location|Select-String"
+                       r"|git\s+(?:status|diff|log|show|branch|remote -v|rev-parse|ls-files|blame))\b[^;&|<>`$]*$",
+                       re.I)
 DESTRUCTIVE = re.compile(r"\brm\s+-[a-z]*r[a-z]*f?\s+(?:/|~|\$HOME|\*)(?:\s|$)|\bsudo\b|\bmkfs|\bdd\s+if=|:\(\)\s*\{"
                          r"|curl[^|]*\|\s*(?:ba|z)?sh|wget[^|]*\|\s*(?:ba|z)?sh|\bdiskutil\s+erase|chmod\s+-R\s+777\s+/"
                          r"|git\s+push\s+(?:-f|--force)|\bshutdown\b|\breboot\b", re.I)
