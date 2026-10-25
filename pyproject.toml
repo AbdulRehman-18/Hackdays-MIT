@@ -19,6 +19,7 @@ dependencies = [
     "soundfile>=0.12",
     "kokoro-onnx>=0.4",
     "mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "faster-whisper>=1.0; sys_platform != 'darwin' or platform_machine != 'arm64'",
     "pyobjc-framework-Quartz>=10; sys_platform == 'darwin'",
     "pyobjc-framework-ApplicationServices>=10; sys_platform == 'darwin'",
     "pyobjc-framework-Cocoa>=10; sys_platform == 'darwin'",
@@ -40,6 +41,7 @@ monday = "forge.cli:main"
 forge = "forge.cli:main"  # the old name, kept working
 
 [tool.uv]
+link-mode = "copy"
 # resemblyzer asks for webrtcvad (needs a compiler: webrtcvad-wheels ships the same module prebuilt) and the old
 # "typing" backport (built into Python 3.11)
 override-dependencies = ["webrtcvad; sys_platform == 'never'", "typing; sys_platform == 'never'"]

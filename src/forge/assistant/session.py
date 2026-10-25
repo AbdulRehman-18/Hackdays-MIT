@@ -6,6 +6,7 @@ import base64
 import json
 import os
 import subprocess
+import sys
 import threading
 import time
 import uuid
@@ -96,6 +97,7 @@ class Session:
         self.ears = Ears(lambda v: self.emit("level", who="you", v=round(v, 3)))
         self.listener = Listener(settings.name, self._voice_command, self._voice_wake,
                                  lambda v: self.emit("level", who="you", v=round(v, 3)), self.busy, self.mouth)
+        self.clients = 0  # open Studio windows and browser tabs (WebSocket connections)
         self.hud_on = False  # set by hud_native when the HUD window is up
         self.monday: subprocess.Popen | None = None  # the Monday voice agent process, while it runs
         self.fast = self.agent_backend = None
@@ -144,7 +146,12 @@ class Session:
 
             def ring():
                 for _ in range(2):
-                    subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False)
+                    if sys.platform == "win32":
+                        import winsound
+                        winsound.MessageBeep(winsound.MB_ICONASTERISK)
+                        time.sleep(0.6)
+                    else:
+                        subprocess.run(["afplay", "/System/Library/Sounds/Glass.aiff"], check=False)
                 if self.voice_enabled:
                     self.mouth.say(data["say"])
             threading.Thread(target=ring, daemon=True).start()
@@ -672,7 +679,10 @@ class Session:
                                                stdin=subprocess.DEVNULL, env={**os.environ, "PYTHONUNBUFFERED": "1"})
                 threading.Thread(target=self._watch_monday, args=(self.monday, log), daemon=True).start()
             elif not on and self.monday and self.monday.poll() is None:
-                self.monday.send_signal(2)  # like Ctrl+C: Monday shuts down cleanly
+                if sys.platform == "win32":
+                    self.monday.terminate()  # Windows has no SIGINT for another process
+                else:
+                    self.monday.send_signal(2)  # like Ctrl+C: Monday shuts down cleanly
                 try:
                     self.monday.wait(timeout=5)
                 except subprocess.TimeoutExpired:

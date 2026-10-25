@@ -128,6 +128,18 @@ def cmd_app(a):
         hud_native.run()
         return 0
 
+    if sys.platform == "win32":  # the HUD is a second, small window next to Studio (no AppKit here)
+        from .assistant import hud_win
+        studio = webview.create_window(f"{settings.name} Studio", base, width=1360, height=880, min_size=(760, 560),
+                                       background_color="#07090d")
+        hud = webview.create_window(**hud_win.window_args())
+        studio.events.closed += lambda: hud.destroy()  # the HUD must not keep the app alive
+
+        def add_win_hud():
+            hud_win.attach(hud, hud_native.wait_for_session())
+        webview.start(add_win_hud)
+        return 0
+
     def add_hud():
         from PyObjCTools import AppHelper
         session = hud_native.wait_for_session()
@@ -156,10 +168,34 @@ def cmd_voice(a):
 
 
 PLIST = Path.home() / "Library" / "LaunchAgents" / "dev.monday.assistant.plist"
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+
+
+def _login_windows(action: str) -> int:
+    """Start the voice agent when you sign in to Windows: a per-user Run entry, no admin rights needed."""
+    import winreg
+    if action == "uninstall":
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY, 0, winreg.KEY_SET_VALUE) as k:
+                winreg.DeleteValue(k, "Monday")
+        except FileNotFoundError:
+            pass
+        print("Monday will no longer start at login.")
+        return 0
+    py = Path(sys.executable)
+    pyw = py.with_name("pythonw.exe")  # no console window
+    cmd = f'"{pyw if pyw.exists() else py}" -m forge voice'
+    with winreg.CreateKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as k:
+        winreg.SetValueEx(k, "Monday", 0, winreg.REG_SZ, cmd)
+    print(f"Monday will start at login (voice mode): {cmd}")
+    print("Undo with: monday login uninstall")
+    return 0
 
 
 def cmd_login(a):
     """Start Forge's voice assistant when you log in (a per-user LaunchAgent), or stop doing so."""
+    if sys.platform == "win32":
+        return _login_windows(a.action)
     if a.action == "uninstall":
         subprocess.run(["launchctl", "unload", str(PLIST)], capture_output=True)
         PLIST.unlink(missing_ok=True)
@@ -199,6 +235,36 @@ def cmd_setup(a):
     return 0
 
 
+def _doctor_windows(line):
+    """What the voice agent needs on Windows: a microphone Windows lets us use, a speaker, WebView2 for the HUD."""
+    try:
+        import sounddevice as sd
+        mic, spk = sd.query_devices(kind="input"), sd.query_devices(kind="output")
+        line(True, f"microphone: {mic['name']}")
+        line(True, f"speaker: {spk['name']}")
+        import numpy as np
+        with sd.InputStream(samplerate=16000, channels=1, dtype="float32") as s:
+            audio, _ = s.read(3200)
+        line(bool(np.isfinite(audio).all()), "the microphone can be opened",
+             "Settings > Privacy & security > Microphone: allow desktop apps to use the microphone")
+    except Exception as e:
+        line(False, f"microphone: {str(e)[:100]}",
+             "Settings > Privacy & security > Microphone: allow desktop apps; check the default input device")
+    try:
+        import winreg
+        clients = r"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+        winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, clients).Close()
+        line(True, "WebView2 runtime (the HUD and the Studio window)")
+    except OSError:
+        line(False, "WebView2 runtime (the HUD and the Studio window)",
+             "install the Evergreen runtime from https://developer.microsoft.com/microsoft-edge/webview2")
+    try:
+        import webview  # noqa: F401
+        line(True, "pywebview (the HUD window)")
+    except ImportError:
+        line(False, "pywebview (the HUD window)", "uv sync --extra app")
+
+
 def cmd_doctor(a):
     import httpx
 
@@ -209,10 +275,16 @@ def cmd_doctor(a):
     def line(good, text, fix=""):
         nonlocal ok
         ok &= good
-        print(("  ✓ " if good else "  ✗ ") + text + ("" if good or not fix else f"\n      fix: {fix}"))
+        sym = "  ✓ " if good else "  ✗ "
+        try:
+            print(sym + text + ("" if good or not fix else f"\n      fix: {fix}"))
+        except UnicodeEncodeError:
+            sym_fallback = "  [+] " if good else "  [-] "
+            print(sym_fallback + text + ("" if good or not fix else f"\n      fix: {fix}"))
     from .config import HARDWARE, PROFILE
     from .hardware import fits
-    gpu = f", ~{HARDWARE.gpu_budget_gb:g} GB for models on the GPU" if HARDWARE.apple_silicon else ", no Apple GPU"
+    gpu = f", ~{HARDWARE.gpu_budget_gb:g} GB for models on the GPU" if HARDWARE.apple_silicon else (
+        "" if sys.platform == "win32" else ", no Apple GPU")
     print(f"  · {HARDWARE.chip}, {HARDWARE.ram_gb:g} GB{gpu}\n    {PROFILE.note}")
     if settings.route == "openai":
         from .harness.backends.openai import OpenAIBackend
@@ -231,10 +303,10 @@ def cmd_doctor(a):
             line(True, f"Ollama is running at {settings.ollama_url}")
             for m in sorted({settings.fast_model, settings.agent_model}):
                 line(m in sizes, f"model {m}", f"ollama pull {m}")
-                if m in sizes and not fits(sizes[m], HARDWARE):
+                if m in sizes and HARDWARE.apple_silicon and not fits(sizes[m], HARDWARE):
                     line(False, f"{m} ({sizes[m]:.1f} GB) is too big for this Mac's GPU memory",
                          f"use {PROFILE.fast_model} (set FORGE_FAST_MODEL / FORGE_AGENT_MODEL)")
-            if settings.fast_model != settings.agent_model and all(m in sizes for m in
+            if HARDWARE.apple_silicon and settings.fast_model != settings.agent_model and all(m in sizes for m in
                                                                    (settings.fast_model, settings.agent_model)):
                 both = sizes[settings.fast_model] + sizes[settings.agent_model]
                 line(fits(both, HARDWARE), "chat and screen-agent models fit in memory together",
@@ -244,6 +316,11 @@ def cmd_doctor(a):
             line(False, "Ollama is not running", "ollama serve")
     print(("  ✓ " if settings.gemini_key else "  · ") + "AI Studio key (optional, for the hosted route)"
           + ("" if settings.gemini_key else ": add GEMINI_API_KEY to .env to use it"))
+    if sys.platform == "win32":
+        _doctor_windows(line)
+        line(all((MODELS / f).exists() for f in KOKORO_FILES), "Kokoro voice (otherwise the Windows voice is used)",
+             "monday setup")
+        return 0 if ok else 1
     p = permissions()
     line(p["accessibility"], "Accessibility permission (clicking real controls)",
          "System Settings > Privacy & Security > Accessibility: add your terminal app, then restart it")
@@ -436,6 +513,12 @@ def main(argv=None):
     cmds = {"app": cmd_app, "voice": cmd_voice, "login": cmd_login,
             "serve": cmd_serve, "ask": cmd_ask, "run": cmd_run, "bench": cmd_bench,
             "setup": cmd_setup, "doctor": cmd_doctor, "enroll": cmd_enroll, "skills": cmd_skills, "export": cmd_export}
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
     try:
         return cmds[a.cmd](a)
     except BackendError as e:

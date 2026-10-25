@@ -1,4 +1,5 @@
 """Opening apps: one call does the whole job, no clicking, and it checks that the app really came to the front."""
+import sys
 import time
 from typing import Annotated
 
@@ -28,6 +29,8 @@ def open_app(name: Annotated[str, Field(description="app name, e.g. Safari, Note
     r = run("open", "-a", name)
     if r.returncode != 0:
         return f"error: no app called {name!r} is installed"
+    if sys.platform == "win32":
+        return f"{name} is open."
     if _wait_front(name):
         return f"{name} is open."
     return f"{name} was launched but is not in front yet (front app: {front_app() or 'unknown'})."

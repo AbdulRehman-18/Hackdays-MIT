@@ -7,6 +7,7 @@ The page is fed through H.* calls at 60 fps from the session's events (`attach`)
 Esc (stop), Space (interrupt and listen while Forge is busy), right Option held (push-to-talk) and Ctrl+Option+M
 (full screen or Dynamic Island)."""
 import json
+import sys
 import threading
 import time
 from pathlib import Path
@@ -223,6 +224,9 @@ def wait_for_session(timeout: float = 30):
 
 def run():
     """Run the HUD as its own app (used by `forge voice`)."""
+    if sys.platform == "win32":
+        from . import hud_win
+        return hud_win.run()
     from AppKit import NSApplication
     app = NSApplication.sharedApplication()
     app.setActivationPolicy_(ACCESSORY)  # no dock icon, never steals focus

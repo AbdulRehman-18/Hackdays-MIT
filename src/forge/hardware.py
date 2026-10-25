@@ -64,6 +64,17 @@ def detect() -> Hardware:
     if system == "Darwin":
         ram = int(_sysctl("hw.memsize") or 0) / 2**30
         chip = _sysctl("machdep.cpu.brand_string") or machine
+    elif system == "Windows":
+        try:
+            import ctypes
+            import struct
+            buf = (ctypes.c_ulong * 16)()
+            buf[0] = 64
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(buf))
+            ram = struct.unpack("Q", bytes(buf)[8:16])[0] / 2**30
+        except Exception:
+            ram = 0.0
+        chip = platform.processor() or machine
     else:
         try:
             ram = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30

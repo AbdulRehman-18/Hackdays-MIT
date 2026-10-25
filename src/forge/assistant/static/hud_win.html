@@ -1,0 +1,188 @@
+﻿<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Monday HUD (Windows)</title>
+<style>
+  /* The Windows HUD: a small card above the taskbar. Same H.* calls as the macOS HUD, so the session feeds both
+     the same way; the window itself (position, size, fade, click-through) is managed by hud_win.py. */
+  :root { --bg: #0e1118; --line: rgba(255, 255, 255, .09); --dim: rgba(255, 255, 255, .58); --accent: #0a6cff; --ease: cubic-bezier(.2, .9, .25, 1); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: #fff; cursor: default; user-select: none;
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  #card { position: absolute; inset: 0; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 20px 0 14px;
+    border: 1px solid var(--line); border-radius: 18px;
+    background: linear-gradient(180deg, #151925, var(--bg)); }
+  #glow { position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 0 0 18px 18px; opacity: 0; transition: opacity .5s;
+    background: linear-gradient(90deg, transparent, #0a6cff, #5ad8ff, #ff8a00, #ff2d2d, transparent); }
+  body.active #glow { opacity: .9; }
+  canvas { width: 88px; height: 88px; flex: none; transition: width .35s var(--ease), height .35s var(--ease); }
+  body.island canvas { width: 24px; height: 24px; }
+  #txt { min-width: 0; flex: 1; }
+  #state { display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }
+  #dot { width: 7px; height: 7px; border-radius: 50%; background: #5a6275; transition: background .3s, box-shadow .3s; }
+  body.s-listening #dot { background: #2fe07a; box-shadow: 0 0 8px #2fe07a; }
+  body.s-thinking #dot { background: #ff8a00; box-shadow: 0 0 8px #ff8a00; animation: pulse 1s ease-in-out infinite; }
+  body.s-acting #dot { background: #5ad8ff; box-shadow: 0 0 8px #5ad8ff; animation: pulse 1.4s ease-in-out infinite; }
+  body.s-speaking #dot { background: #0a6cff; box-shadow: 0 0 8px #0a6cff; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  #you { margin-top: 6px; font-size: 13px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #you:empty { display: none; }
+  #me { margin-top: 3px; font-size: 17px; font-weight: 600; line-height: 1.28; letter-spacing: -.005em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #me:empty { display: none; }
+  #me .c { opacity: .42; }
+  #hint { margin-top: 8px; font-size: 11px; color: rgba(255, 255, 255, .38); white-space: nowrap; }
+  #hint kbd { font: inherit; padding: 1px 5px; border-radius: 4px; background: rgba(255, 255, 255, .09); color: rgba(255, 255, 255, .7); }
+  #bars { display: flex; gap: 3px; align-items: center; height: 28px; flex: none; opacity: 0; transition: opacity .25s; }
+  body.active #bars { opacity: 1; }
+  #bars i { display: block; width: 3px; height: 4px; border-radius: 2px; }
+  /* island: only the idle "listening for the wake word" pill */
+  body.island #card { padding: 0 12px; gap: 9px; border-radius: 17px; background: #000; border-color: rgba(255, 255, 255, .06); justify-content: center; }
+  body.island #txt, body.island #glow { display: none; }
+  body.island #bars { display: flex; opacity: .9; }
+  body.island #bars i { width: 2px; height: 3px !important; }
+</style>
+</head>
+<body class="island">
+<div id="card">
+  <canvas id="orb" width="176" height="176"></canvas>
+  <div id="txt">
+    <div id="state"><span id="dot"></span><span id="label">Say “Hey Monday”</span></div>
+    <div id="you"></div>
+    <div id="me"></div>
+    <div id="hint"></div>
+  </div>
+  <div id="bars"><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="glow"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const cv = $("orb"), g = cv.getContext("2d");
+const LABEL = { idle: "Say “Hey Monday”", listening: "Listening", thinking: "Thinking", acting: "Working", speaking: "Speaking" };
+const FORM = { idle: .8, listening: 1, thinking: .9, acting: .85, speaking: 1 };
+const SPEED = { idle: .4, listening: 1, thinking: 3.2, acting: 1.5, speaking: 1.4 };
+// [colour, centre y, amplitude, frequency, thickness, phase speed, opacity]  (the macOS HUD's wisps)
+const WISPS = [["#0a6cff", 6, 7, .85, 9, .8, 1], ["#ff2d2d", 2, 6, 1.05, 6, 1.1, 1], ["#ff8a00", -2, 5, 1.35, 3.6, 1.5, 1],
+               ["#5ad8ff", -5, 6, 1.2, 3.2, 1.25, .9], ["#2fe07a", 3, 5, 1.9, 2, 1.9, .55], ["#ffffff", 0, 4, 1.6, 1.6, 1.7, 1]];
+const BAR_COLORS = ["#0a6cff", "#5ad8ff", "#ffffff", "#ff8a00", "#ff2d2d"];
+const bars = [...document.querySelectorAll("#bars i")];
+bars.forEach((b, i) => b.style.background = BAR_COLORS[i]);
+const dpr = () => window.devicePixelRatio || 1;
+
+let st = "idle", amp = 0, ampT = 0, form = 0, formV = 0, swirl = 0, last = performance.now(), typing = null, capTimer = 0;
+let layoutMode = "island";
+
+function ribbon(ctx, cy, A, k, ph, thick) {
+  const N = 26, top = [], bot = [];
+  for (let i = 0; i <= N; i++) {
+    const x = -66 + 132 * i / N, e = Math.pow(Math.cos(x / 66 * Math.PI / 2), 1.4);
+    const y = cy + A * e * Math.sin(k * x / 22 + ph), w = thick * e * (.65 + .35 * Math.sin(x / 17 + ph * 1.3));
+    top.push([x, y - w]); bot.unshift([x, y + w]);
+  }
+  ctx.beginPath();
+  [...top, ...bot].forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+  ctx.closePath();
+}
+
+function drawOrb(t) {
+  const s = cv.clientWidth * dpr();
+  if (cv.width !== Math.round(s)) cv.width = cv.height = Math.round(s);
+  g.setTransform(1, 0, 0, 1, 0, 0);
+  g.clearRect(0, 0, cv.width, cv.height);
+  const scale = (cv.width / 160) * Math.min(form, 1.3) * (1 + .03 * Math.sin(t * 2) + .08 * amp);
+  g.setTransform(scale, 0, 0, scale, cv.width / 2, cv.height / 2);
+  const R = 64;
+  // soft halo that swells with the voice
+  const halo = g.createRadialGradient(0, 0, R * .8, 0, 0, R * 1.25);
+  halo.addColorStop(0, `rgba(61,160,255,${(.18 + amp * .5) * Math.min(form, 1)})`); halo.addColorStop(1, "rgba(61,160,255,0)");
+  g.fillStyle = halo; g.beginPath(); g.arc(0, 0, R * 1.25, 0, 7); g.fill();
+  const body = g.createRadialGradient(0, -4, 0, 0, -4, R * 1.05);
+  body.addColorStop(0, "rgba(6,7,11,.95)"); body.addColorStop(.72, "rgba(11,13,20,.92)");
+  body.addColorStop(.93, "rgba(42,47,60,.85)"); body.addColorStop(1, "rgba(207,216,234,.6)");
+  g.fillStyle = body; g.beginPath(); g.arc(0, 0, R, 0, 7); g.fill();
+  g.save(); g.beginPath(); g.arc(0, 0, R - 1, 0, 7); g.clip();
+  g.rotate((Math.sin(swirl / 90) * 40 + swirl * .3) * Math.PI / 180); g.scale(1, 1 + amp * .25);
+  g.globalCompositeOperation = "lighter";
+  WISPS.forEach(([col, cy, A, k, thick, ps, op], i) => {
+    const ph = t * ps * (st === "thinking" ? 2.6 : 1) + i * 1.7;
+    const grad = g.createLinearGradient(-64, 0, 64, 0);
+    grad.addColorStop(0, col + "00"); grad.addColorStop(.22, col + "d9"); grad.addColorStop(.5, col);
+    grad.addColorStop(.78, col + "d9"); grad.addColorStop(1, col + "00");
+    g.globalAlpha = op * .85; g.fillStyle = grad;
+    ribbon(g, cy * (1 + amp * .5), A * (1 + amp * 1.3), k, ph, thick * (1 + amp * .6)); g.fill();
+  });
+  g.restore();
+  g.globalAlpha = 1; g.globalCompositeOperation = "source-over";
+  const rim = g.createLinearGradient(0, -R, 0, R);
+  rim.addColorStop(0, "rgba(255,255,255,.55)"); rim.addColorStop(.45, "rgba(255,255,255,.08)"); rim.addColorStop(1, "rgba(255,255,255,.7)");
+  g.strokeStyle = rim; g.lineWidth = 1.8; g.beginPath(); g.arc(0, 0, R - .9, 0, 7); g.stroke();
+  const spec = g.createRadialGradient(-22, -38, 0, -22, -38, 24);
+  spec.addColorStop(0, "rgba(255,255,255,.5)"); spec.addColorStop(1, "rgba(255,255,255,0)");
+  g.save(); g.translate(-22, -38); g.rotate(-.42); g.scale(1, .42); g.translate(22, 38);
+  g.fillStyle = spec; g.beginPath(); g.arc(-22, -38, 24, 0, 7); g.fill(); g.restore();
+}
+
+window.H = {
+  setup() {},
+  mode() {},
+  layout(m) {  // "island" (idle, listening for the wake word) or "full" (captions)
+    layoutMode = m;
+    document.body.classList.toggle("island", m === "island");
+    $("hint").innerHTML = m === "island" ? "Hold <kbd>Right Ctrl</kbd> to talk"
+      : "<kbd>Esc</kbd> stop &nbsp; <kbd>Space</kbd> interrupt &nbsp; hold <kbd>Right Ctrl</kbd> to talk";
+  },
+  state(s) {
+    if (!(s in FORM) || s === st) return;
+    if (st === "idle" && form < .5) H.wake();
+    st = s;
+    document.body.className = document.body.className.replace(/\bs-\w+/g, "").trim() + " s-" + s;
+    document.body.classList.toggle("active", s !== "idle");
+    $("label").textContent = LABEL[s];
+    if (s === "idle") { clearTimeout(capTimer); capTimer = setTimeout(() => { $("you").textContent = ""; $("me").textContent = ""; }, 4500); }
+    else clearTimeout(capTimer);
+  },
+  level(v) { ampT = Math.max(0, Math.min(1, v)); },
+  wake() { formV += 9; },
+  say(who, text) {
+    if (who === "you") { $("you").textContent = text; $("me").textContent = ""; typing = null; }
+    else typing = { text, t: performance.now(), i: -1 };
+    clearTimeout(capTimer);
+    if (st === "idle") capTimer = setTimeout(() => { $("you").textContent = ""; $("me").textContent = ""; }, 5000);
+  },
+  cursor() {}, move() {}, press() {}, click() {}, image() {},  // the doodle cursor and camera shot are macOS-HUD only
+};
+
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const t = now / 1000;
+  amp += (((st === "listening" || st === "speaking") ? ampT : 0) - amp) * (ampT > amp ? .45 : .12);
+  formV += (110 * (FORM[st] - form) - 12 * formV) * dt;
+  form = Math.max(0, form + formV * dt);
+  swirl += dt * (st === "thinking" ? 160 : st === "acting" ? 25 : 0);
+  if (st !== "thinking" && st !== "acting") swirl *= Math.pow(.2, dt);
+  drawOrb(t);
+  if (st !== "idle") bars.forEach((b, i) => b.style.height = (4 + (3 + amp * 20) * Math.abs(Math.sin(t * (5 + i * 1.3) + i))) + "px");
+  if (typing) {
+    const n = Math.min(typing.text.length, Math.floor((now - typing.t) / 1000 * 48));
+    if (n !== typing.i) {
+      typing.i = n;
+      const me = $("me"); me.textContent = typing.text.slice(0, n);
+      if (n < typing.text.length) { const c = document.createElement("span"); c.className = "c"; c.textContent = typing.text.slice(n); me.append(c); }
+    }
+    if (n >= typing.text.length) typing = null;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+H.layout("island");
+if (location.hash === "#demo") {
+  H.layout("full");
+  let f = 0; setInterval(() => { f += .3; H.level(st === "speaking" || st === "listening" ? .25 + .55 * Math.abs(Math.sin(f) * Math.sin(f * 2.3)) : 0); }, 60);
+  setTimeout(() => { H.state("listening"); H.say("you", "What's the weather in London?"); }, 600);
+  setTimeout(() => { H.state("speaking"); H.say("monday", "It's 14 degrees and cloudy in London right now."); }, 2600);
+}
+</script>
+</body>
+</html>
+
+

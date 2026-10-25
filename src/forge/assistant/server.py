@@ -251,6 +251,7 @@ def create_app(voice: bool = True, voice_agent: bool = False) -> FastAPI:
         def listener(msg: dict):
             loop.call_soon_threadsafe(lambda: None if q.full() else q.put_nowait(msg))
         session.listeners.append(listener)
+        session.clients += 1  # Studio windows and browser tabs that are open (the Windows HUD shows only while one is)
         await sock.send_json({"type": "hello", "state": session.state, "name": settings.name,
                               "model": session.model_info(), "prefs": asdict(session.prefs),
                               "running_chat": session.running_chat, "voice": session.voice_enabled})
@@ -268,6 +269,7 @@ def create_app(voice: bool = True, voice_agent: bool = False) -> FastAPI:
         finally:
             sender.cancel()
             session.listeners.remove(listener)
+            session.clients -= 1
     return app
 
 

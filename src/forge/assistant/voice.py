@@ -19,6 +19,7 @@ import queue
 import random
 import re
 import subprocess
+import sys
 import threading
 import time
 from collections import deque
@@ -106,7 +107,7 @@ def dbg(msg: str):
     print(line, flush=True)
     try:
         HOME.mkdir(parents=True, exist_ok=True)
-        with open(HOME / "debug.log", "a") as fh:
+        with open(HOME / "debug.log", "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     except OSError:
         pass
@@ -144,6 +145,17 @@ def denoise(audio: np.ndarray) -> np.ndarray:
         return audio
 
 
+def _cuda() -> bool:
+    """An NVIDIA GPU that CTranslate2 (faster-whisper) can use. FORGE_STT_DEVICE=cpu turns it off."""
+    if _env("STT_DEVICE", "auto") == "cpu":
+        return False
+    try:
+        import ctranslate2
+        return ctranslate2.get_cuda_device_count() > 0
+    except Exception:
+        return False
+
+
 def _segments(audio: np.ndarray, prompt: str | None) -> list[tuple[str, float, float]]:
     """(text, no_speech_prob, avg_logprob) for each piece Whisper heard."""
     global _cpu_model
@@ -153,7 +165,11 @@ def _segments(audio: np.ndarray, prompt: str | None) -> list[tuple[str, float, f
         from faster_whisper import WhisperModel
         if _cpu_model is None:
             name = STT_MODEL.rsplit("/", 1)[-1].removeprefix("whisper-").removesuffix("-mlx")
-            _cpu_model = WhisperModel(name, device="cpu", compute_type="int8")
+            if _cuda():
+                _cpu_model = WhisperModel(name, device="cuda", compute_type="float16")
+            else:  # int8 on the CPU; more than ~8 threads stops helping for a few seconds of audio
+                _cpu_model = WhisperModel(name, device="cpu", compute_type="int8",
+                                          cpu_threads=min(8, os.cpu_count() or 4))
         out, _ = _cpu_model.transcribe(audio, language=WHISPER_LANG, beam_size=1, vad_filter=False,
                                        condition_on_previous_text=False, initial_prompt=prompt,
                                        without_timestamps=True)
@@ -188,6 +204,10 @@ def _transcribe(audio: np.ndarray, prompt: str | None = None, warmup: bool = Fal
     text = " ".join(" ".join(kept).split())
     if segs and not kept:
         _last["why"] = f"Whisper unsure, probably noise (\"{' '.join(s.strip() for s, *_ in segs)[:40]}\")"
+    words = re.findall(r"[\w']+", text.lower())
+    if len(words) >= 6 and len(set(words)) / len(words) < 0.5:  # "I'm sorry, I'm sorry, ...": Whisper looping on noise
+        _last["why"] = f"repeated words, Whisper looping on noise (\"{text[:40]}\")"
+        return ""
     if text.lower().strip(" .!?,") in JUNK:
         _last["why"] = f"noise word \"{text}\""
         return ""
@@ -466,7 +486,17 @@ class Mouth:
                 self._done_one()
 
     def _say_fallback(self, text: str, gen: int):
-        p = subprocess.Popen(["say", "-r", "205", text])
+        """The system voice, when Kokoro is not installed: macOS `say`, or Windows SAPI through PowerShell."""
+        if sys.platform == "win32":
+            script = ("Add-Type -AssemblyName System.Speech; "
+                      "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                      "$s.Rate = 2; $s.Speak($env:MONDAY_SAY)")
+            p = subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                                 env={**os.environ, "MONDAY_SAY": text}, stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                 creationflags=subprocess.CREATE_NO_WINDOW)
+        else:
+            p = subprocess.Popen(["say", "-r", "205", text])
         while p.poll() is None:
             if gen != self.gen:
                 p.terminate()

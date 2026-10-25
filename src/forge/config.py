@@ -19,8 +19,9 @@ def monday_command() -> list[str] | None:
     """How to start the Monday voice agent, or None when its folder is missing."""
     if not (MONDAY_DIR / "main.py").is_file():
         return None
-    py = MONDAY_DIR / ".venv" / "bin" / "python"
     import sys
+    py = MONDAY_DIR / ".venv" / ("Scripts" if sys.platform == "win32" else "bin") / (
+        "python.exe" if sys.platform == "win32" else "python")
     return [str(py if py.exists() else sys.executable), "main.py"]
 HARDWARE = detect()
 PROFILE = profile(HARDWARE)

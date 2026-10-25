@@ -9,12 +9,15 @@ SCREENSHOTS = os.getenv("FORGE_SCREENSHOTS", "auto")  # auto: only when the elem
 
 
 def permissions() -> dict[str, bool]:
-    import Quartz
     try:
-        record = bool(Quartz.CGPreflightScreenCaptureAccess())
+        import Quartz
+        try:
+            record = bool(Quartz.CGPreflightScreenCaptureAccess())
+        except Exception:
+            record = True
+        return {"accessibility": ax.trusted(), "screen_recording": record}
     except Exception:
-        record = True
-    return {"accessibility": ax.trusted(), "screen_recording": record}
+        return {"accessibility": False, "screen_recording": False}
 
 
 def observe() -> Observation:
