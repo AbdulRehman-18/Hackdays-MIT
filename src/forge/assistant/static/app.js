@@ -469,6 +469,9 @@ const LABELS = {
   type_text: (a) => ["Type", `“${a.text || ""}”`], key: (a) => ["Press", a.combo], scroll: (a) => ["Scroll", a.direction], wait: (a) => ["Wait", a.seconds ? `${a.seconds}s` : ""],
   done: (a) => ["Done", a.summary],
 };
+// steps whose detail is code-like (a path, a command, a URL, a key) show it in monospace; the rest read as prose
+const CODE_OBJ = new Set(["list_files", "search_code", "read_file", "write_file", "edit_file", "run_command", "open_url",
+  "read_webpage", "open_file", "key", "click", "click_element"]);
 function label(tool, args) {
   const f = LABELS[tool];
   if (f) { const [v, o] = f(args || {}); return [v, o == null ? "" : String(o)]; }
@@ -564,7 +567,7 @@ class Turn {
     if (s.repaired) meta += `<span title="The first reply was malformed and Monday repaired it">repaired</span>`;
     const open = !!s._open;
     el.classList.toggle("open", open);
-    el.innerHTML = `<button class="row" type="button" aria-expanded="${open}"><span class="sd st-${esc(s.status)}" aria-label="${esc(s.status)}"></span><span class="verb">${esc(verb)}</span><span class="obj">${esc(obj)}</span><span class="meta">${meta}${icon("chev-r", "chev")}</span></button>
+    el.innerHTML = `<button class="row" type="button" aria-expanded="${open}"><span class="sd st-${esc(s.status)}" aria-label="${esc(s.status)}"></span><span class="verb">${esc(verb)}</span><span class="obj${CODE_OBJ.has(s.tool) ? " code" : ""}">${esc(obj)}</span><span class="meta">${meta}${icon("chev-r", "chev")}</span></button>
       ${open ? `<div class="body">${this.body(s, diff)}</div>` : ""}`;
     if (this.live) scrollDown();
   }
@@ -916,7 +919,7 @@ $("model-btn").onclick = async () => {
   try { m = await api("/api/models"); } catch (e) { menu.innerHTML = `<div class="mh">Couldn’t list models</div>`; return; }
   const item = (name, sub) => `<button role="menuitemradio" class="${name === m.selected ? "sel" : ""}" aria-checked="${name === m.selected}" data-model="${esc(name)}"><b>${esc(prettyModel(name))}</b><span>${esc(sub)}</span></button>`;
   let html = `<div class="mh">On this Mac</div>`;
-  html += m.ollama ? (m.local.map((x) => item(x.name, [x.name, x.params, gb(x.size), x.fits === false ? "too big for this Mac" : ""].filter(Boolean).join(" · "))).join("") || `<div class="mh">No local models yet</div>`) : `<div class="mh">Ollama isn’t running</div>`;
+  html += m.ollama ? (m.local.map((x) => item(x.name, [x.name, x.params, gb(x.size), x.fits === false ? "too big for this Mac" : "", x.tiny ? "too small for agents" : ""].filter(Boolean).join(" · "))).join("") || `<div class="mh">No local models yet</div>`) : `<div class="mh">Ollama isn’t running</div>`;
   if (m.openai && m.openai.models && m.openai.models.length) html += `<hr><div class="mh">OpenAI-compatible server</div>` + m.openai.models.map((x) => item(x.name, m.openai.url)).join("");
   const hosted = (m.aistudio || []).filter((x) => x.available);
   if (hosted.length) html += `<hr><div class="mh">Google AI Studio</div>` + hosted.map((x) => item(x.name, "hosted · needs internet")).join("");

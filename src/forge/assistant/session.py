@@ -61,6 +61,13 @@ class Prefs:
     hud_mode: str = "full"       # full (orb + screen edges) or island (in the notch)
 
 
+def _billions(params: str) -> float:
+    """"751.63M" -> 0.75, "4.0B" -> 4.0; unknown sizes count as big enough."""
+    import re
+    m = re.match(r"([\d.]+)\s*([MB])", params or "", re.I)
+    return float(m.group(1)) / (1000 if m.group(2).upper() == "M" else 1) if m else 99.0
+
+
 def _match(text: str, words) -> bool:
     t = text.lower().strip(" .!?,")
     return any(t == w or t.startswith(w + " ") for w in words)
@@ -90,6 +97,7 @@ class Session:
         self.listener = Listener(settings.name, self._voice_command, self._voice_wake,
                                  lambda v: self.emit("level", who="you", v=round(v, 3)), self.busy, self.mouth)
         self.hud_on = False  # set by hud_native when the HUD window is up
+        self.monday: subprocess.Popen | None = None  # the Monday voice agent process, while it runs
         self.fast = self.agent_backend = None
         self.select_model(self.prefs.model or self.default_model(), save=False)
         runtime.emit = self._runtime_event
@@ -197,10 +205,23 @@ class Session:
             fast = agent = self._backend(model)
         self.fast, self.agent_backend = fast, agent
         runtime.fast = fast
+        if save and not model.startswith(("aistudio:", "openai:")):
+            params = self.model_info_for(model).get("params", "")
+            if _billions(params) < 2.5:
+                self.emit("toast", level="error",
+                          text=f"{model} ({params}) is very small: fast, but it gets agent work wrong (wrong tools, "
+                               "nonsense answers). Gemma 4 E4B is recommended, and it answers in ~0.3 s.")
         self.prefs.model = model
         if save:
             self.save_prefs()
         self.emit("model", **self.model_info())
+
+    def model_info_for(self, model: str) -> dict:
+        try:
+            d = httpx.post(f"{self.s.ollama_url}/api/show", json={"model": model}, timeout=4).json()
+            return {"params": d.get("details", {}).get("parameter_size", "")}
+        except (httpx.HTTPError, ValueError):
+            return {}
 
     def model_info(self) -> dict:
         m = self.prefs.model
@@ -242,6 +263,7 @@ class Session:
         names = {m["name"] for m in local}
         for m in local:
             m["fits"] = fits(m["size"] / 1e9, HARDWARE)
+            m["tiny"] = _billions(m["params"]) < 2.5
         rec = [{**r, "size": f"≈{r['gb']:g} GB", "installed": r["name"] in names, "fits": fits(r["gb"], HARDWARE),
                 "suggested": r["name"] in (PROFILE.fast_model, PROFILE.agent_model)} for r in RECOMMENDED]
         hosted = [{"name": f"aistudio:{m}", "label": m, "available": bool(self.s.gemini_key)} for m in AISTUDIO_MODELS]
@@ -295,6 +317,13 @@ class Session:
                 item["text"] = f"(could not read {name}: {e})"
         self.uploads[uid] = item
         return {k: v for k, v in item.items() if k != "text"}
+
+    def prime(self):
+        """Read the Computer-mode system prompt once at start-up, so the first real message reuses Ollama's cache
+        instead of paying for the whole prompt."""
+        from ..harness.backends import Message
+        agent = ChatAgent(self.fast, self._tools(threading.Event()), self.s.name, self.skills, mode="chat")
+        self.fast.complete([Message("system", agent.system()), Message("user", "Reply with: ok")], temperature=0)
 
     # ---------------- workspaces (Code mode) ----------------
     def workspaces(self) -> list[dict]:
@@ -623,20 +652,48 @@ class Session:
 
     # ---------------- voice ----------------
     def set_voice_mode(self, on: bool):
+        """Start or stop the voice agent: the Monday program in MONDAY_DIR (its own HUD, wake word and voice, on
+        Gemma), in its own process so it can never stop a Studio task. Without that folder, the built-in listener."""
         if not self.voice_enabled:
             return
-        self.prefs.voice_mode = on
+        from ..config import MONDAY_DIR, monday_command
+        cmd = monday_command()
         try:
-            if on:
+            if cmd is None and on:
                 self.listener.start()
-            else:
+            elif cmd is None:
                 self.listener.stop()
                 self.interrupt("voice")
+            elif on and not (self.monday and self.monday.poll() is None):
+                log = Path.home() / ".forge" / "monday-voice.log"
+                log.parent.mkdir(parents=True, exist_ok=True)
+                out = log.open("w")
+                self.monday = subprocess.Popen(cmd, cwd=MONDAY_DIR, stdout=out, stderr=subprocess.STDOUT,
+                                               stdin=subprocess.DEVNULL, env={**os.environ, "PYTHONUNBUFFERED": "1"})
+                threading.Thread(target=self._watch_monday, args=(self.monday, log), daemon=True).start()
+            elif not on and self.monday and self.monday.poll() is None:
+                self.monday.send_signal(2)  # like Ctrl+C: Monday shuts down cleanly
+                try:
+                    self.monday.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self.monday.kill()
+            self.prefs.voice_mode = on
         except Exception as e:
             self.prefs.voice_mode = False
-            self.emit("toast", level="error", text=f"microphone: {e}")
-        self.save_prefs()
+            self.emit("toast", level="error", text=f"voice agent: {e}")
         self.emit("prefs", prefs=asdict(self.prefs))
+
+    def _watch_monday(self, proc: subprocess.Popen, log: Path):
+        """When Monday exits on its own (a crash, a missing permission), say why in Studio."""
+        code = proc.wait()
+        if self.monday is not proc:
+            return
+        self.prefs.voice_mode = False
+        self.emit("prefs", prefs=asdict(self.prefs))
+        if code not in (0, -2, 130):
+            tail = [ln for ln in log.read_text(errors="replace").splitlines() if ln.strip()][-3:]
+            why = " | ".join(tail)[-300:] or f"exit {code}"
+            self.emit("toast", level="error", text=f"Voice agent stopped: {why}")
 
     def _voice_wake(self):
         """ "Hey Forge" (or a double clap): mid-task it stops the task, as Monday does, then listens."""

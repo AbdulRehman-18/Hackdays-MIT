@@ -11,6 +11,17 @@ from .hardware import detect, profile
 
 load_dotenv()
 SKILLS_DIR = Path(os.getenv("FORGE_SKILLS_DIR", Path(__file__).resolve().parents[2] / "skills"))
+# the voice agent is the owner's Monday program itself (its main.py, HUD, listening and voice), running on Gemma
+MONDAY_DIR = Path(os.getenv("MONDAY_DIR", Path(__file__).resolve().parents[2] / "monday" / "monday"))
+
+
+def monday_command() -> list[str] | None:
+    """How to start the Monday voice agent, or None when its folder is missing."""
+    if not (MONDAY_DIR / "main.py").is_file():
+        return None
+    py = MONDAY_DIR / ".venv" / "bin" / "python"
+    import sys
+    return [str(py if py.exists() else sys.executable), "main.py"]
 HARDWARE = detect()
 PROFILE = profile(HARDWARE)
 
@@ -22,7 +33,7 @@ class Settings:
     ollama_url: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
     fast_model: str = os.getenv("FORGE_FAST_MODEL", PROFILE.fast_model)
     agent_model: str = os.getenv("FORGE_AGENT_MODEL", PROFILE.agent_model)
-    keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "10m")
+    keep_alive: str = os.getenv("OLLAMA_KEEP_ALIVE", "30m")
     num_ctx: int = int(os.getenv("OLLAMA_NUM_CTX", str(PROFILE.num_ctx)))
     openai_url: str = os.getenv("FORGE_OPENAI_URL", "http://127.0.0.1:11434/v1")
     openai_model: str = os.getenv("FORGE_OPENAI_MODEL", PROFILE.fast_model)

@@ -139,13 +139,20 @@ def cmd_app(a):
 
 
 def cmd_voice(a):
-    """Voice assistant only: wake word and HUD, no window (Studio stays available in the browser)."""
-    threading.Thread(target=_serve, args=(True, False, True), daemon=True).start()
-    _wait_for_server()
-    from .assistant import hud_native
-    print(f"Say “Hey {settings.name}” or clap twice. Studio: http://{settings.host}:{settings.port}")
-    hud_native.run()
-    return 0
+    """The voice agent: the Monday program itself (wake word, HUD, voice), on Gemma. Ctrl+C stops it."""
+    import os
+
+    from .config import MONDAY_DIR, monday_command
+    cmd = monday_command()
+    if cmd is None:
+        print(f"Monday is not at {MONDAY_DIR}; set MONDAY_DIR in .env. Starting the built-in voice agent instead.")
+        threading.Thread(target=_serve, args=(True, False, True), daemon=True).start()
+        _wait_for_server()
+        from .assistant import hud_native
+        hud_native.run()
+        return 0
+    os.chdir(MONDAY_DIR)
+    os.execv(cmd[0], [cmd[0], *cmd[1:], *a.args])
 
 
 PLIST = Path.home() / "Library" / "LaunchAgents" / "dev.monday.assistant.plist"
@@ -412,7 +419,8 @@ def main(argv=None):
     b.add_argument("--tools", default="all", choices=["all", "few"], help="offer all quick tools, or just two")
     b.add_argument("--temperature", type=float, default=0.2)
     b.add_argument("--out", help="append the results table to this Markdown file")
-    sub.add_parser("voice", help="voice assistant only: wake word + HUD, no window")
+    v = sub.add_parser("voice", help="the Monday voice agent: wake word, HUD and voice (on Gemma)")
+    v.add_argument("args", nargs=argparse.REMAINDER, help="passed to Monday, e.g. --ptt or --text")
     lg = sub.add_parser("login", help="start the voice assistant when you log in")
     lg.add_argument("action", choices=["install", "uninstall"])
     sub.add_parser("setup", help="download the Gemma models and the voice")

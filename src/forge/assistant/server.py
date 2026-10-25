@@ -33,6 +33,7 @@ def warm_up(s: Session):
             httpx.post(f"{s.s.ollama_url}/api/generate", json={"model": s.prefs.model, "keep_alive": s.s.keep_alive},
                        timeout=180)
             s.emit("model", **s.model_info())
+            s.prime()
         if s.voice_enabled:
             from .voice import preload
             preload()
@@ -50,6 +51,8 @@ async def lifespan(app: FastAPI):
     yield
     session.interrupt()
     session.listener.stop()
+    if session.prefs.voice_mode:
+        session.set_voice_mode(False)  # never leave Monday running after Studio quits
 
 
 def create_app(voice: bool = True, voice_agent: bool = False) -> FastAPI:
