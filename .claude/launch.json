@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "forge-ui", "runtimeExecutable": "uv", "runtimeArgs": ["run", "forge", "serve", "--no-browser", "--no-voice"], "port": 8765 }
+  ]
+}

@@ -1,0 +1,351 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Forge HUD</title>
+<style>
+  :root { --ease: cubic-bezier(.2, .9, .25, 1); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; cursor: none;
+    font-family: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body.demo { background: radial-gradient(1200px 700px at 30% 20%, #3a4a6b, #141824 60%, #0b0d14); }
+
+  /* ---------- light from the orb: a soft glow rising from the bottom, and a hairline rim that fades upward ---------- */
+  #edge { position: fixed; inset: 0; pointer-events: none; opacity: 0; transition: opacity .9s ease; }
+  #edge.on { opacity: 1; }
+  #aura { position: absolute; left: 50%; bottom: 0; width: 130vw; height: 62vh; pointer-events: none;
+    transform: translate(-50%, 46%) scale(.6); transform-origin: 50% 100%; opacity: 0;
+    transition: transform 1.1s cubic-bezier(.2, .9, .25, 1), opacity .9s ease;
+    background: radial-gradient(closest-side, rgba(150, 205, 255, .42), rgba(50, 120, 255, .26) 38%,
+      rgba(255, 140, 70, .10) 64%, transparent 82%);
+    filter: blur(28px); will-change: transform, opacity; }
+  #edge.on #aura { transform: translate(-50%, 46%) scale(var(--aura, 1)); opacity: var(--aura-o, .85); }
+  #rim { position: absolute; inset: 0; border-radius: 14px;
+    box-shadow: inset 0 0 0 1.25px rgba(185, 222, 255, .8), inset 0 -2px 22px rgba(80, 150, 255, .35);
+    -webkit-mask: linear-gradient(to top, #000 0%, rgba(0, 0, 0, .5) 30%, transparent 70%);
+    opacity: var(--rim-o, .7); }
+
+  /* ---------- glass orb ---------- */
+  #orb { position: fixed; left: 50%; bottom: 0; width: 320px; height: 560px; margin-left: -160px; pointer-events: none; overflow: visible; }
+  #orb .shadow { filter: blur(14px); }
+
+  /* ---------- dynamic island mode ---------- */
+  #island { position: fixed; top: 0; left: var(--ix, 50%); width: var(--iw, 0px); height: var(--ih, 32px); transform: translateX(-50%);
+    background: #000; border-radius: 0 0 var(--ir, 10px) var(--ir, 10px); opacity: 0; pointer-events: none;
+    transition: width .55s cubic-bezier(.34, 1.4, .5, 1), height .55s cubic-bezier(.34, 1.4, .5, 1), border-radius .45s ease, opacity .3s; }
+  #island::before, #island::after { content: ""; position: absolute; top: 0; width: 10px; height: 10px; }
+  #island::before { left: -10px; background: radial-gradient(circle at 0 100%, transparent 9.5px, #000 10px); }
+  #island::after { right: -10px; background: radial-gradient(circle at 100% 100%, transparent 9.5px, #000 10px); }
+  body.island #island { opacity: 1; }
+  body.island #edge { display: none; }
+  #bars { position: absolute; right: 16px; top: calc(var(--nh, 32px) / 2 - 8px); height: 16px; display: flex; gap: 3px; align-items: center;
+    opacity: 0; transition: opacity .25s; }
+  #bars i { display: block; width: 3px; height: 4px; border-radius: 2px; }
+  body.island.active #bars { opacity: 1; }
+  #orb { transform-origin: 160px 476px; transition: transform .7s cubic-bezier(.34, 1.25, .5, 1); }
+
+  /* ---------- captions ---------- */
+  #cap { position: fixed; left: 50%; bottom: 176px; transform: translate(-50%, 12px); max-width: min(72vw, 920px);
+    text-align: center; opacity: 0; transition: opacity .35s ease, transform .5s var(--ease); pointer-events: none; }
+  #cap.on { opacity: 1; transform: translate(-50%, 0); }
+  #cap .pill { display: inline-block; padding: 12px 22px 13px; border-radius: 22px;
+    background: linear-gradient(180deg, rgba(18, 20, 34, .72), rgba(10, 11, 20, .78));
+    border: 1px solid rgba(255, 255, 255, .10);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, .35), 0 0 0 1px rgba(120, 110, 255, .12), inset 0 1px 0 rgba(255, 255, 255, .06); }
+  #you { color: rgba(255, 255, 255, .62); font-size: 14px; font-weight: 500; margin-bottom: 4px; }
+  #you:empty { display: none; }
+  #me { color: #fff; font-size: 21px; font-weight: 600; letter-spacing: -.01em; line-height: 1.3; }
+  #me:empty { display: none; }
+  #me .c { opacity: .5; }
+  body.island #cap, body.island #cap.on { top: calc(var(--nh, 32px) + 8px); bottom: auto; left: var(--ix, 50%); width: var(--capw, 400px);
+    max-width: none; text-align: left; transform: translateX(-50%); transition: opacity .25s ease; }
+  body.island #cap .pill { display: block; padding: 0; background: none; border: 0; box-shadow: none; }
+  body.island #you { font-size: 12px; margin-bottom: 2px; }
+  body.island #me { font-size: 14.5px; line-height: 1.32; }
+  body.island #shot { top: calc(var(--ih, 32px) + 12px); bottom: auto; width: 240px; margin-left: -120px; left: var(--ix, 50%); }
+
+  /* ---------- camera snapshot ---------- */
+  #shot { position: fixed; left: 50%; bottom: 280px; width: 320px; margin-left: -160px; border-radius: 18px; opacity: 0;
+    transform: translateY(14px) scale(.94); transition: opacity .4s ease, transform .55s var(--ease);
+    box-shadow: 0 0 0 1.5px rgba(150, 200, 255, .9), 0 0 30px rgba(80, 160, 255, .55), 0 18px 50px rgba(0, 0, 0, .45); }
+  #shot.on { opacity: 1; transform: none; }
+
+  /* ---------- Monday's own cursor (separate from yours) ---------- */
+  #cursor { position: fixed; left: 0; top: 0; pointer-events: none; will-change: transform; opacity: 0; }
+  #cursor .me { transform-origin: 3px 2px; will-change: transform; }
+  #cursor svg { display: block; overflow: visible;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .45)); }
+  .ripple { position: fixed; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; pointer-events: none;
+    border: 2px solid rgba(14, 15, 18, .55);
+    animation: rip .55s var(--ease) forwards; }
+  .ripple.small { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+  @keyframes rip { from { transform: scale(.15); opacity: 1; } to { transform: scale(1); opacity: 0; } }
+
+  #demo { position: fixed; top: 16px; left: 16px; display: none; gap: 8px; flex-wrap: wrap; max-width: calc(100vw - 32px); }
+  body.demo #demo { display: flex; }
+  #demo button { font: 600 13px -apple-system, system-ui; padding: 8px 12px; border-radius: 10px; border: 0; cursor: pointer;
+    background: rgba(255, 255, 255, .12); color: #fff; }
+  body.demo, body.demo #demo button { cursor: default; }
+</style>
+</head>
+<body>
+<div id="edge"><div id="aura"></div><div id="rim"></div></div>
+
+<div id="island"><div id="bars"><i></i><i></i><i></i><i></i><i></i></div></div>
+<svg id="orb" viewBox="0 0 320 560">
+  <defs>
+    <radialGradient id="body" cx=".5" cy=".46" r=".55">
+      <stop offset="0" stop-color="#06070b" stop-opacity=".92"/><stop offset=".72" stop-color="#0b0d14" stop-opacity=".86"/>
+      <stop offset=".93" stop-color="#2a2f3c" stop-opacity=".75"/><stop offset="1" stop-color="#cfd8ea" stop-opacity=".55"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".7"/>
+    </linearGradient>
+    <radialGradient id="spec" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="inside"><circle r="62"/></clipPath>
+    <filter id="soft" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <filter id="softer" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+  <g id="sphere" transform="translate(160 476) scale(0)">
+    <circle class="shadow" r="64" id="aura" fill="#3da0ff" opacity="0"/>
+    <circle r="64" fill="url(#body)"/>
+    <g clip-path="url(#inside)">
+      <g id="wisps" style="mix-blend-mode: screen"></g>
+    </g>
+    <circle r="63.2" fill="none" stroke="url(#rim)" stroke-width="1.6"/>
+    <path d="M -50 30 A 60 60 0 0 0 50 30" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="2.2" filter="url(#soft)"/>
+    <ellipse cx="-22" cy="-38" rx="24" ry="10" transform="rotate(-24 -22 -38)" fill="url(#spec)"/>
+  </g>
+</svg>
+
+<img id="shot" alt="">
+<div id="cap"><div class="pill"><div id="you"></div><div id="me"></div></div></div>
+
+<div id="cursor">
+  <div class="me">
+    <svg width="26" height="30" viewBox="0 0 26 30">
+      <path d="M2 2 L2 25 L8 19 L13 28 L17 26 L12 17 L22 17 Z"
+            fill="#f2f4f7" stroke="#111318" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+  </div>
+</div>
+
+<div id="demo">
+  <button onclick="H.wake();H.state('listening');H.say('you','')">wake</button>
+  <button onclick="H.state('listening')">listening</button>
+  <button onclick="H.say('you','Open Excalidraw and draw a cat');H.state('thinking')">thinking</button>
+  <button onclick="H.state('speaking');H.say('forge','It is 9:42 PM. Want me to set a reminder?')">speaking</button>
+  <button onclick="H.state('acting');H.cursor(true);setTimeout(()=>H.move(innerWidth*.3,innerHeight*.35,700),450)">acting + cursor</button>
+  <button onclick="const x=innerWidth*(.2+Math.random()*.6),y=innerHeight*(.15+Math.random()*.5);H.move(x,y,650);setTimeout(()=>H.press(x,y),700)">move + click</button>
+  <button onclick="H.state('idle');H.cursor(false)">idle</button>
+  <button onclick="H.mode(document.body.classList.contains('island') ? 'full' : 'island')">toggle island</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const C = { x: 160, y: 476 }, R = 62;
+const FORM = { idle: 0, listening: 1, thinking: .9, acting: .78, speaking: 1 };
+const EDGE = { idle: 0, listening: 1, thinking: .75, acting: .55, speaking: 1 };
+const SPEED = { idle: .4, listening: 1, thinking: 3.2, acting: 1.5, speaking: 1.4 };
+// Siri-like wisps: [colour, centre y, wave amplitude, frequency, thickness, phase speed, opacity, blur]
+const WISPS = [
+  ["#0a6cff", 6, 7, .85, 9, .8, 1, "softer"], ["#ff2d2d", 2, 6, 1.05, 6, 1.1, 1, "softer"],
+  ["#ff8a00", -2, 5, 1.35, 3.6, 1.5, 1, "soft"], ["#5ad8ff", -5, 6, 1.2, 3.2, 1.25, .9, "soft"],
+  ["#2fe07a", 3, 5, 1.9, 2, 1.9, .55, "soft"], ["#ffffff", 0, 4, 1.6, 1.6, 1.7, 1, "soft"],
+];
+
+let st = "idle", amp = 0, ampT = 0, form = 0, formV = 0, spin = 0, swirl = 0, last = performance.now();
+let capTimer = 0, typing = null;
+// Monday's cursor: a soft black glossy pointer that flies along a curve, leans into motion, settles with a wobble
+const cur = { on: false, vis: 0, x: 0, y: 0, from: null, to: null, ctrl: null, t0: 0, dur: 1, arrived: -10,
+              s: 1, sv: 0, tilt: 0, dir: [0, 0] };
+function home() {  // where the cursor lives: the orb (bottom centre, or the island in the notch)
+  if (ISL.mode === "island") return [(ISL.nw ? ISL.nx + ISL.nw / 2 : innerWidth / 2) - 120, (ISL.nh || 32) / 2];
+  return [innerWidth / 2, innerHeight - 84];
+}
+function fly(x, y, ms) {
+  const [x0, y0] = [cur.x, cur.y], d = Math.hypot(x - x0, y - y0) || 1;
+  const bend = (Math.random() < .5 ? -1 : 1) * Math.min(120, d * .18);
+  cur.from = [x0, y0]; cur.to = [x, y]; cur.t0 = performance.now(); cur.dur = Math.max(1, ms);
+  cur.ctrl = [(x0 + x) / 2 - (y - y0) / d * bend, (y0 + y) / 2 + (x - x0) / d * bend - Math.min(60, d * .08)];
+  cur.dir = [(x - x0) / d, (y - y0) / d];
+}
+const ease = p => p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; }
+const defs = document.querySelector("#orb defs");
+const wispEls = WISPS.map(([col, , , , , , op, blur], i) => {
+  const g = el("linearGradient", { id: "w" + i, gradientUnits: "userSpaceOnUse", x1: -64, y1: 0, x2: 64, y2: 0 }, defs);
+  [[0, 0], [.22, .85], [.5, 1], [.78, .85], [1, 0]].forEach(([o, a]) => el("stop", { offset: o, "stop-color": col, "stop-opacity": a }, g));
+  return el("path", { fill: `url(#w${i})`, opacity: op, filter: `url(#${blur})` }, $("wisps"));
+});
+
+const ISL = { mode: "full", nx: 0, nw: 0, nh: 32 };  // notch left x, width, height in points
+const BAR_COLORS = ["#0a6cff", "#5ad8ff", "#ffffff", "#ff8a00", "#ff2d2d"];
+const bars = [...document.querySelectorAll("#bars i")];
+bars.forEach((b, i) => b.style.background = BAR_COLORS[i]);
+let islandKey = "";
+
+function layoutIsland() {
+  const island = ISL.mode === "island";
+  document.body.classList.toggle("island", island);
+  document.body.classList.toggle("active", st !== "idle");
+  if (!island) { if (islandKey) { $("orb").style.transform = ""; islandKey = ""; } return; }
+  const nh = ISL.nh || 32, nw = ISL.nw || 0;
+  const cx = nw ? ISL.nx + nw / 2 : innerWidth / 2;
+  const active = st !== "idle", capOn = $("cap").classList.contains("on");
+  let w = nw, h = nh, r = 10;
+  if (active || capOn) { w = Math.max(nw + 140, 300); r = 14; }
+  if (capOn) {
+    w = Math.max(nw + 280, 500);
+    document.documentElement.style.setProperty("--capw", (w - 44) + "px");
+    h = nh + $("cap").offsetHeight + 18; r = 26;
+  }
+  if (!nw && !active && !capOn) w = 0;
+  const key = [w, h, r, cx, nh].join();
+  if (key === islandKey) return;
+  islandKey = key;
+  const root = document.documentElement.style;
+  root.setProperty("--iw", w + "px"); root.setProperty("--ih", h + "px"); root.setProperty("--ir", r + "px");
+  root.setProperty("--ix", cx + "px"); root.setProperty("--nh", nh + "px");
+  // fly the orb into the island's left wing
+  const s = (nh - 9) / 128, tx = cx - w / 2 + 14 + 64 * s, ty = nh / 2;
+  $("orb").style.transform = `translate(${tx - innerWidth / 2}px, ${ty - (innerHeight - 84)}px) scale(${s})`;
+}
+
+window.H = {
+  setup(o) { Object.assign(ISL, o); islandKey = ""; layoutIsland(); },
+  mode(m) { ISL.mode = m; islandKey = ""; layoutIsland(); },
+  state(s) {
+    if (!(s in FORM) || s === st) return;
+    if (st === "idle" && s !== "idle" && form < .2) H.wake();
+    st = s;
+    $("edge").classList.toggle("on", s !== "idle");
+    if (s === "idle") { clearTimeout(capTimer); capTimer = setTimeout(() => $("cap").classList.remove("on"), 3500); }
+    else clearTimeout(capTimer);
+  },
+  level(v) { ampT = Math.max(0, Math.min(1, v)); },
+  wake() { formV += 9; $("edge").classList.add("on"); },  // pop: the spring overshoots, then settles
+  say(who, text) {
+    if (who === "you") { $("you").textContent = text; $("me").textContent = ""; typing = null; }
+    else { typing = { text, i: 0, t: performance.now() }; }
+    $("cap").classList.toggle("on", !!(text || $("you").textContent));
+    clearTimeout(capTimer);
+    if (st === "idle") capTimer = setTimeout(() => $("cap").classList.remove("on"), 5000);
+  },
+  cursor(on) {  // appear out of the orb, or fly home into it and vanish
+    if (on && !cur.on) { [cur.x, cur.y] = home(); cur.from = null; cur.vis = 0; cur.s = .2; cur.sv = 6; }
+    if (!on && cur.on) fly(...home(), 650);
+    cur.on = on;
+  },
+  move(x, y, ms) { if (!cur.on) H.cursor(true); fly(x, y, ms); },
+  press(x, y) {  // squish and a soft ring, nothing louder than the click itself
+    cur.s = .68; cur.sv = 0;
+    const r = document.createElement("div"); r.className = "ripple small"; r.style.left = x + "px"; r.style.top = y + "px";
+    document.body.appendChild(r); setTimeout(() => r.remove(), 600);
+  },
+  click(x, y) { H.press(x, y); },
+  image(url) {
+    const s = $("shot"); s.src = url; s.classList.add("on");
+    clearTimeout(s._t); s._t = setTimeout(() => s.classList.remove("on"), 7000);
+  },
+};
+
+// a ribbon between two waves, tapered at both ends, inside the sphere
+function ribbon(cy, A, k, ph, thick) {
+  const N = 26, top = [], bot = [];
+  for (let i = 0; i <= N; i++) {
+    const x = -66 + 132 * i / N, e = Math.pow(Math.cos(x / 66 * Math.PI / 2), 1.4);
+    const y = cy + A * e * Math.sin(k * x / 22 + ph);
+    const w = thick * e * (.65 + .35 * Math.sin(x / 17 + ph * 1.3));
+    top.push(`${x.toFixed(1)} ${(y - w).toFixed(1)}`); bot.unshift(`${x.toFixed(1)} ${(y + w).toFixed(1)}`);
+  }
+  return "M" + top.join(" L") + " L" + bot.join(" L") + "Z";
+}
+
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  const t = now / 1000;
+  const voiced = st === "listening" || st === "speaking";
+  amp += ((voiced ? ampT : 0) - amp) * (ampT > amp ? .45 : .12);
+
+  const target = FORM[st];
+
+  // springy size: the orb overshoots a little, like liquid glass
+  formV += (110 * (target - form) - 12 * formV) * dt;
+  form = Math.max(0, form + formV * dt);
+  const sp = SPEED[st];
+  spin += dt * sp * 40; swirl += dt * (st === "thinking" ? 160 : st === "acting" ? 25 : 0);
+  const scale = Math.min(form, 1.3) * (1 + .03 * Math.sin(t * 2) + .08 * amp);
+  $("sphere").setAttribute("transform", `translate(${C.x} ${C.y}) scale(${scale.toFixed(3)})`);
+  $("wisps").setAttribute("transform", `rotate(${(Math.sin(swirl / 90) * 40 + swirl * .3).toFixed(1)}) scale(1 ${(1 + amp * .25).toFixed(2)})`);
+  if (st !== "thinking" && st !== "acting") swirl *= Math.pow(.2, dt);  // settle back to horizontal
+  wispEls.forEach((p, i) => {
+    const [, cy, A, k, thick, ps] = WISPS[i];
+    const ph = t * ps * (st === "thinking" ? 2.6 : 1) + i * 1.7;
+    p.setAttribute("d", ribbon(cy * (1 + amp * .5), A * (1 + amp * 1.3), k, ph, thick * (1 + amp * .6)));
+  });
+  $("aura").setAttribute("opacity", (.12 + amp * .55) * Math.min(form, 1));
+
+  // island: size follows the state and the caption, voice bars on the right wing
+  if (ISL.mode === "island") {
+    layoutIsland();
+    bars.forEach((b, i) => b.style.height = (4 + (st === "idle" ? 0 : 3 + amp * 12) * Math.abs(Math.sin(t * (5 + i * 1.3) + i))) + "px");
+    $("island").style.boxShadow = st === "idle" ? "none" : `0 4px ${10 + amp * 26}px rgba(60, 150, 255, ${.18 + amp * .45})`;
+  }
+
+  // light from the orb: brightens and swells with the voice, breathes slowly when thinking
+  const base = EDGE[st], breath = st === "thinking" ? .08 * Math.sin(t * 3) : 0;
+  const root = document.documentElement.style;
+  root.setProperty("--aura", (1 + amp * .22 + breath).toFixed(3));
+  root.setProperty("--aura-o", Math.min(1, base * .8 + amp * .35).toFixed(3));
+  root.setProperty("--rim-o", Math.min(1, base * .55 + amp * .45).toFixed(3));
+
+  // type-on captions for Monday's replies
+  if (typing) {
+    const n = Math.min(typing.text.length, Math.floor((now - typing.t) / 1000 * 48));
+    if (n !== typing.i) {
+      typing.i = n;
+      $("me").innerHTML = "";
+      $("me").append(typing.text.slice(0, n));
+      if (n < typing.text.length) { const c = document.createElement("span"); c.className = "c"; c.textContent = typing.text.slice(n); $("me").append(c); }
+    }
+    if (n >= typing.text.length) typing = null;
+  }
+
+  // Monday's cursor
+  cur.vis += ((cur.on || (cur.from && now - cur.t0 < cur.dur)) ? 1 - cur.vis : -cur.vis) * .18;
+  if (cur.vis > .01 || cur.on) {
+    let x = cur.x, y = cur.y, moving = false;
+    if (cur.from) {
+      const p = Math.min(1, (now - cur.t0) / cur.dur), e = ease(p), u = 1 - e;
+      const nx = u * u * cur.from[0] + 2 * u * e * cur.ctrl[0] + e * e * cur.to[0];
+      const ny = u * u * cur.from[1] + 2 * u * e * cur.ctrl[1] + e * e * cur.to[1];
+      cur.tilt += (Math.max(-22, Math.min(22, (nx - cur.x) * 1.4)) - cur.tilt) * .25;  // lean into the motion
+      x = cur.x = nx; y = cur.y = ny; moving = p < 1;
+      if (p >= 1) { cur.from = null; cur.arrived = now; }
+    }
+    if (!moving) cur.tilt += (Math.sin(t * 1.3) * 3 - cur.tilt) * .08;           // gentle sway at rest
+    const since = (now - cur.arrived) / 1000;                                        // little wobble on arrival
+    const wob = since < .45 ? Math.exp(-since * 9) * Math.sin(since * 30) * 5 : 0;
+    const bob = moving ? 0 : Math.sin(t * 2.4) * 1.6;                              // floating, alive
+    cur.sv += (220 * (1 - cur.s) - 14 * cur.sv) * dt; cur.s += cur.sv * dt;          // springy squish and pop-in
+    const px = x + cur.dir[0] * wob, py = y + cur.dir[1] * wob + bob;
+    $("cursor").style.opacity = Math.min(1, cur.vis * 1.15);
+    $("cursor").style.transform = `translate(${px - 3}px, ${py - 2}px)`;
+    document.querySelector("#cursor .me").style.transform = `rotate(${cur.tilt.toFixed(1)}deg) scale(${cur.s.toFixed(3)})`;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+if (location.hash === "#demo") {
+  document.body.classList.add("demo");
+  let fake = 0; setInterval(() => { fake += .3; H.level(st === "speaking" || st === "listening" ? .25 + .55 * Math.abs(Math.sin(fake) * Math.sin(fake * 2.3)) : 0); }, 60);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Forge Studio</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a6cff'/%3E%3Cpath d='M10 9h12M10 9v14M10 16h8' stroke='%23fff' stroke-width='3' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+<script>try { const t = localStorage.getItem("forge-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (e) {}</script>
+</head>
+<body>
+<a class="skip" href="#input">Skip to message box</a>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-new" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
+    <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+    <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3M7 15h10"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3M13 15h4"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+    <symbol id="i-clip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.6 8.5a2 2 0 0 1-2.8-2.8L15 7.3"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16Z"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="7" r="2"/><path d="M6 7v10M18 9c0 5-6 4-11 8"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19.5 10 4 4 0 0 1 18 18Z"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+    <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l12-7Z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 4.4 3.4 8.2 8 9 4.6-.8 8-4.6 8-9V6Z"/></symbol>
+    <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 10v4M8 7v10M12 4v16M16 7v10M20 10v4"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z"/><path d="M4 19V5"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+  <!-- ============ sidebar ============ -->
+  <aside class="side" id="side" aria-label="Sessions">
+    <div class="side-top">
+      <a class="brand" href="#/" aria-label="Forge Studio, new session"><span class="logo" aria-hidden="true">F</span><b>Forge</b></a>
+      <button class="icon-btn" id="side-close" aria-label="Hide sidebar" data-tip="Hide sidebar"><svg><use href="#i-panel"/></svg></button>
+    </div>
+    <a href="#/" class="side-new" id="side-new"><svg><use href="#i-plus"/></svg><span>New session</span><kbd>⌘K</kbd></a>
+    <label class="side-search"><svg><use href="#i-search"/></svg><input id="side-search" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off"></label>
+    <nav class="sessions" id="sessions" aria-label="Sessions"></nav>
+    <div class="side-foot">
+      <nav class="side-links" aria-label="Pages">
+        <a href="#/models" data-nav="models"><svg><use href="#i-chip"/></svg>Models</a>
+        <a href="#/skills" data-nav="skills"><svg><use href="#i-sparkle"/></svg>Skills</a>
+        <a href="#/evals" data-nav="evals"><svg><use href="#i-chart"/></svg>Evals</a>
+        <a href="#/train" data-nav="train"><svg><use href="#i-flask"/></svg>Train</a>
+        <a href="#/settings" data-nav="settings"><svg><use href="#i-gear"/></svg>Settings</a>
+      </nav>
+      <div class="side-status" id="side-status" aria-live="polite"><span class="dot" id="status-dot"></span><span class="st-text"><b id="status-model">Connecting…</b><span id="status-sub">Ollama</span></span></div>
+    </div>
+  </aside>
+  <div class="scrim" id="scrim" hidden></div>
+
+  <!-- ============ main ============ -->
+  <main class="main" id="main">
+    <header class="top">
+      <button class="icon-btn" id="side-open" aria-label="Show sidebar" data-tip="Show sidebar"><svg><use href="#i-panel"/></svg></button>
+      <div class="crumbs" id="crumbs">
+        <span class="title" id="top-title">New session</span>
+        <span class="badge" id="top-mode" hidden></span>
+        <span class="ws" id="top-ws" hidden></span>
+      </div>
+      <span class="grow"></span>
+      <button class="voice-pill" id="voice-pill" hidden aria-label="Voice agent on. Stop it"><span class="live-dot"></span>Voice agent on<span class="sep">·</span><b>Stop</b></button>
+      <div class="ctx" id="ctx" data-tip="Context used" hidden><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" class="trk"/><circle cx="10" cy="10" r="8" class="val" id="ctx-ring"/></svg><span id="ctx-text"></span></div>
+      <div class="pop">
+        <button class="model-btn" id="model-btn" aria-haspopup="menu" aria-expanded="false"><span class="dot" id="model-dot"></span><span id="model-name">Model</span><svg class="chev"><use href="#i-chev"/></svg></button>
+        <div class="menu menu-right" id="model-menu" role="menu" hidden></div>
+      </div>
+    </header>
+
+    <!-- session view (also the new-session screen) -->
+    <section class="view" id="view-session" aria-label="Session">
+      <div class="scroller" id="scroller">
+        <div class="column" id="thread" aria-live="polite"></div>
+        <div class="column start" id="start" hidden></div>
+      </div>
+      <div class="composer-wrap" id="composer-wrap">
+        <div class="column">
+          <div class="mention-menu menu" id="mention" role="listbox" hidden></div>
+          <form class="composer" id="composer" autocomplete="off">
+            <div class="atts" id="atts" hidden></div>
+            <textarea id="input" rows="1" placeholder="Ask Forge to build, fix or explain something…" aria-label="Message Forge"></textarea>
+            <div class="comp-row">
+              <button type="button" class="icon-btn sm" id="attach-btn" aria-label="Attach files" data-tip="Attach files"><svg><use href="#i-clip"/></svg></button>
+              <input type="file" id="file-input" multiple hidden>
+              <div class="seg" id="mode-seg" role="radiogroup" aria-label="Mode">
+                <button type="button" role="radio" data-mode="code" aria-checked="true"><svg><use href="#i-code"/></svg>Code</button>
+                <button type="button" role="radio" data-mode="computer" aria-checked="false"><svg><use href="#i-monitor"/></svg>Computer</button>
+              </div>
+              <div class="pop">
+                <button type="button" class="chip" id="perm-btn" aria-haspopup="menu" aria-expanded="false"><svg><use href="#i-shield"/></svg><span id="perm-text">Ask before acting</span><svg class="chev"><use href="#i-chev"/></svg></button>
+                <div class="menu menu-up" id="perm-menu" role="menu" hidden>
+                  <button role="menuitemradio" data-approve="ask"><b>Ask before acting</b><span>Forge asks before edits, commands and risky actions.</span></button>
+                  <button role="menuitemradio" data-approve="auto"><b>Auto-approve</b><span>Forge acts without asking. Dangerous commands stay blocked.</span></button>
+                </div>
+              </div>
+              <span class="grow"></span>
+              <span class="hint" id="comp-hint"></span>
+              <button type="submit" class="send" id="send-btn" aria-label="Send"><svg><use href="#i-up"/></svg></button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="view page" id="view-models" hidden></section>
+    <section class="view page" id="view-skills" hidden></section>
+    <section class="view page" id="view-evals" hidden></section>
+    <section class="view page" id="view-train" hidden></section>
+    <section class="view page" id="view-settings" hidden></section>
+  </main>
+</div>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="/static/md.js"></script>
+<script src="/static/app.js"></script>
+<script src="/static/pages.js"></script>
+</body>
+</html>
