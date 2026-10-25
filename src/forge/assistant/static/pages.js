@@ -16,7 +16,7 @@ async function pageModels() {
   const use = (name) => name === m.selected ? `<span class="tag b">${icon("check")} In use</span>` : `<button class="btn sm" data-use="${esc(name)}">Use</button>`;
   const local = (x) => `<div class="card ${x.name === m.selected ? "sel" : ""}"><div><h3>${esc(prettyModel(x.name))}</h3><div class="sub">${esc(x.name)}</div></div>
       <div class="tags">${[x.params, x.quant, x.format === "safetensors" ? "MLX" : (x.format || "").toUpperCase(), gb(x.size)].filter(Boolean).map((p) => `<span class="tag">${esc(p)}</span>`).join("")}
-        ${x.loaded ? '<span class="tag g">loaded</span>' : ""}${x.fits === false ? '<span class="tag o">too big for this Mac</span>' : ""}${g4(x) ? '<span class="tag b">tools · vision</span>' : ""}</div>
+        ${x.loaded ? '<span class="tag g">loaded</span>' : ""}${x.fits === false ? '<span class="tag o">too big for this Mac</span>' : ""}${x.tiny ? '<span class="tag o">too small for agent work</span>' : ""}${g4(x) ? '<span class="tag b">tools · vision</span>' : ""}</div>
       <div class="acts-row">${use(x.name)}</div></div>`;
   const rec = (r) => `<div class="card" data-rec="${esc(r.name)}"><div><h3>${esc(r.label)}</h3><div class="sub">${esc(r.name)} · ${esc(r.size)}</div></div>
       <p>${esc(r.note)}</p><div class="tags">${r.suggested ? '<span class="tag g">suggested for this Mac</span>' : ""}${r.fits ? "" : '<span class="tag o">too big for this Mac</span>'}${r.installed ? '<span class="tag">installed</span>' : ""}</div>

@@ -108,9 +108,25 @@ def test_simple_request_makes_no_plan_call():
 
 
 def test_empty_streamed_answer_is_retried():
-    b = Scripted(j("respond"), "Here you go.", answer="")
+    b = Scripted("Here you go.", answer="")  # "hi" needs no tool: answered directly, no decision call
     r = ChatAgent(b, [weather]).run([], Turn("user", "hi"))
     assert r.text == "Here you go."
+
+
+def test_plain_questions_skip_the_decision_and_tool_requests_do_not():
+    b = Scripted(answer="391")
+    ChatAgent(b, [weather]).run([], Turn("user", "what is 17 times 23"))
+    assert all(c.get("stream") for c in b.calls)  # one streamed call, nothing else
+    b = Scripted(j("weather", place="Oslo"), j("respond"), answer="cold")
+    ChatAgent(b, [weather]).run([], Turn("user", "weather in Oslo"))
+    assert ran == ["weather"]
+
+
+def test_decide_and_answer_share_one_cacheable_system_prompt():
+    b = Scripted(j("weather", place="Oslo"), j("respond"), answer="cold")
+    ChatAgent(b, [weather]).run([], Turn("user", "weather in Oslo"))
+    systems = {c["messages"][0].content for c in b.calls}
+    assert len(systems) == 1 and "[" not in next(iter(systems)).split("Tools:")[0][-40:]  # no clock in it
 
 
 def test_checklist_marks_the_current_item():
