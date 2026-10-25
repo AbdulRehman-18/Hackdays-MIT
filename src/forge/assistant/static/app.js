@@ -2,6 +2,9 @@
 /* Monday Studio: a desktop workspace for Monday's coding and computer agent.
    Talks to the local server over one WebSocket (/ws) and a small REST API; see docs/studio-protocol.md. */
 
+/* the app window (window_native.py) shows macOS's frosted sidebar behind the page */
+if (new URLSearchParams(location.search).has("native")) document.documentElement.classList.add("native");
+
 /* ================= helpers ================= */
 const $ = (id) => document.getElementById(id);
 const esc = (s) => MD.esc(String(s == null ? "" : s));
@@ -11,6 +14,14 @@ const gb = (n) => (n ? `${(n / 1e9).toFixed(1)} GB` : "");
 const kfmt = (n) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n || 0));
 const base = (p) => String(p || "").replace(/\/+$/, "").split("/").pop() || p;
 const tilde = (p) => String(p || "").replace(/^(\/private)?\/Users\/[^/]+/, "~");
+function ago(t) {
+  const s = Math.max(0, Date.now() / 1000 - (t || 0));
+  if (s < 60) return "now";
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 604800) return `${Math.floor(s / 86400)}d`;
+  return `${Math.floor(s / 604800)}w`;
+}
 const shortPath = (p) => { const t = tilde(p).split("/"); return t.length > 4 ? `${t[0]}/…/${t.slice(-2).join("/")}` : t.join("/"); };
 
 async function api(path, opts = {}) {
@@ -99,6 +110,7 @@ function onMessage(m) {
     case "approval_done": onApprovalDone(m); break;
     case "toast": toast(m.text, m.level === "error" ? "error" : "info"); break;
     case "notice": toast(m.text); break;
+    case "transcript": if (m.text) { input.value = (input.value ? input.value.trimEnd() + " " : "") + m.text; autosize(); input.focus(); } break;
     case "pull": if (window.onPull) window.onPull(m); break;
     case "eval": if (window.onEval) window.onEval(m); break;
     default: break; // voice-agent events (level, caption, wake, cursor...) are for the HUD
@@ -117,10 +129,11 @@ function applyModel(m) {
 function applyPrefs(p) {
   S.prefs = { ...S.prefs, ...p };
   const auto = S.prefs.approve === "auto";
-  $("perm-text").textContent = auto ? "Auto-approve" : "Ask before acting";
+  $("perm-text").textContent = auto ? "Auto-approve" : "Ask for approval";
   $("perm-btn").classList.toggle("auto", auto);
   document.querySelectorAll("#perm-menu [data-approve]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.approve === S.prefs.approve)));
   $("voice-pill").hidden = !(S.voice && S.prefs.voice_mode);
+  if ($("voice-btn")) syncTray();
   if (S.view === "settings" && window.syncSettings) window.syncSettings();
 }
 async function setPref(k, v) {
@@ -151,25 +164,54 @@ async function loadChats() {
   try { S.chats = await api("/api/chats"); } catch (e) { S.chats = []; }
   renderSessions();
 }
+const SHOW = 5;  // sessions shown per project before "Show more"
+const opened = new Set(), closed = new Set();
 function renderSessions() {
   const q = $("side-search").value.trim().toLowerCase();
   const list = S.chats.filter((c) => !q || c.title.toLowerCase().includes(q) || (c.workspace || "").toLowerCase().includes(q));
-  const groups = new Map();
+  const projects = new Map(), computer = [];
   for (const c of list) {
-    const code = c.mode === "code" && c.workspace;
-    const key = code ? c.workspace : "~computer";
-    if (!groups.has(key)) groups.set(key, { key, code, label: code ? base(c.workspace) : "Computer", path: c.workspace, items: [] });
-    groups.get(key).items.push(c);
+    if (c.mode === "code" && c.workspace) {
+      if (!projects.has(c.workspace)) projects.set(c.workspace, []);
+      projects.get(c.workspace).push(c);
+    } else computer.push(c);
   }
+  for (const w of S.recentWs || []) if (!q && !projects.has(w.path)) projects.set(w.path, []);
   const box = $("sessions");
-  if (!list.length) { box.innerHTML = `<div class="side-empty">${q ? "No sessions match." : "No sessions yet. Start one with New session."}</div>`; return; }
-  box.innerHTML = [...groups.values()].map((g) => `<div class="grp"><div class="grp-h" ${g.code ? `title="${esc(g.path)}"` : ""}>${icon(g.code ? "folder" : "monitor")}<span>${esc(g.label)}</span></div>
-    ${g.items.map((c) => `<a class="sess ${c.id === S.chatId ? "on" : ""}" href="#/s/${c.id}" data-id="${c.id}" ${c.id === S.chatId ? 'aria-current="page"' : ""}>
-      <span class="t">${esc(c.title)}</span>${S.running.has(c.id) ? '<span class="run-dot" title="Working"></span>' : ""}
-      <button class="more" data-more="${c.id}" aria-label="Session actions" aria-haspopup="menu">${icon("dots")}</button></a>`).join("")}</div>`).join("");
+  const row = (c) => {
+    const run = S.running.has(c.id);
+    return `<a class="sess ${c.id === S.chatId ? "on" : ""} ${run ? "running" : ""}" href="#/s/${c.id}" data-id="${c.id}" ${c.id === S.chatId ? 'aria-current="page"' : ""}>
+      ${run ? '<span class="run-dot" aria-hidden="true"></span>' : ""}<span class="t">${esc(c.title)}</span>
+      <span class="when">${run ? "In progress" : ago(c.updated)}</span>
+      <button class="more" data-more="${c.id}" aria-label="Session actions" aria-haspopup="menu">${icon("dots")}</button></a>`;
+  };
+  const group = (key, label, ic, items) => {
+    const isClosed = closed.has(key), all = opened.has(key);
+    const shown = all ? items : items.slice(0, SHOW);
+    return `<div class="proj ${isClosed ? "closed" : ""}"><button class="proj-h" data-proj="${esc(key)}" aria-expanded="${!isClosed}" title="${esc(key.startsWith("~") ? label : key)}">${icon(isClosed ? "folder" : ic)}<span>${esc(label)}</span></button>
+      ${shown.map(row).join("")}${items.length > shown.length ? `<button class="show-more" data-all="${esc(key)}">Show more</button>` : ""}
+      ${items.length ? "" : '<span class="proj-empty">No sessions</span>'}</div>`;
+  };
+  let html = `<div class="sec-h">Projects<button class="icon-btn" id="add-proj" aria-label="Open a project folder" data-tip="Open a folder">${icon("plus")}</button></div>`;
+  html += projects.size ? [...projects.entries()].map(([p, items]) => group(p, base(p), "folder-open", items)).join("")
+    : `<div class="side-empty">Open a project folder to work on code.</div>`;
+  if (computer.length) html += `<div class="sec-h">Computer</div>` + group("~computer", "On this Mac", "monitor", computer);
+  if (q && !list.length) html = `<div class="side-empty">No sessions match “${esc(q)}”.</div>`;
+  box.innerHTML = html;
 }
 $("side-search").addEventListener("input", renderSessions);
+$("side-search-btn").onclick = () => {
+  const box = $("side-search-box"), open = box.hidden;
+  box.hidden = !open; $("side-search-btn").hidden = open; $("side-search-btn").setAttribute("aria-expanded", String(open));
+  if (open) $("side-search").focus();
+};
+$("side-search").addEventListener("blur", () => { if (!$("side-search").value) { $("side-search-box").hidden = true; $("side-search-btn").hidden = false; } });
 $("sessions").addEventListener("click", (e) => {
+  const ph = e.target.closest("[data-proj]");
+  if (ph) { const k = ph.dataset.proj; closed.has(k) ? closed.delete(k) : closed.add(k); renderSessions(); return; }
+  const sm = e.target.closest("[data-all]");
+  if (sm) { opened.add(sm.dataset.all); renderSessions(); return; }
+  if (e.target.closest("#add-proj")) { pickFolder(); return; }
   const more = e.target.closest("[data-more]");
   if (more) { e.preventDefault(); e.stopPropagation(); sessionMenu(more); return; }
   if (window.innerWidth <= 900) closeDrawer();
@@ -241,17 +283,18 @@ function route() {
   closeFloating(); closeMenus();
   const h = location.hash.replace(/^#\/?/, "");
   const [a, b] = h.split("/");
-  document.querySelectorAll(".side-links a").forEach((x) => x.classList.toggle("on", x.dataset.nav === a));
+  document.querySelectorAll("[data-nav]").forEach((x) => x.classList.toggle("on", x.dataset.nav === a));
   if (PAGE_VIEWS.includes(a)) {
     S.view = a; S.chatId = null; S.chat = null;
     showView(a);
-    $("top-title").textContent = a[0].toUpperCase() + a.slice(1); $("top-mode").hidden = true; $("top-ws").hidden = true; updateCtx();
+    $("top-title").textContent = a[0].toUpperCase() + a.slice(1); $("top-ws").hidden = true; $("mode-seg").hidden = true; updateCtx();
     window.PAGES[a]();
     renderSessions();
     return;
   }
-  S.view = "session"; showView("session");
+  S.view = "session"; showView("session"); $("mode-seg").hidden = false;
   if (a === "demo") return Demo.start(b === "computer" ? "computer" : "code");
+  if (S.demo) { Demo.stop(); S.running.delete("demo-" + S.demo); delete S.live["demo-" + S.demo]; }
   S.demo = null;
   if (a === "s" && b) openChat(b); else startScreen();
 }
@@ -262,66 +305,62 @@ function showView(v) {
 
 /* ================= top bar ================= */
 function setTop(chat) {
-  $("top-title").textContent = chat ? chat.title : "New session";
+  $("top-title").textContent = chat ? chat.title : "";
   const mode = chat ? chat.mode || "computer" : null;
-  const m = $("top-mode");
-  m.hidden = !mode;
-  if (mode) { m.className = `badge ${mode}`; m.innerHTML = mode === "code" ? `${icon("code")}Code` : `${icon("monitor")}Computer`; }
   const w = $("top-ws");
   w.hidden = !(chat && mode === "code" && chat.workspace);
   if (!w.hidden) {
     const br = S.branches[chat.workspace];
-    w.innerHTML = `${icon("folder")}<span class="p" title="${esc(chat.workspace)}">${esc(shortPath(chat.workspace))}</span>${br ? `${icon("branch")}<span>${esc(br)}</span>` : ""}`;
+    w.innerHTML = `${icon("folder")}<span class="p" title="${esc(chat.workspace)}">${esc(base(chat.workspace))}</span>${br ? `${icon("branch")}<span>${esc(br)}</span>` : ""}`;
     if (br === undefined) loadBranch(chat.workspace);
   }
+  syncTray();
 }
 async function loadBranch(path) {
   S.branches[path] = "";
   try { const r = await api("/api/workspaces/check", { method: "POST", body: { path } }); S.branches[path] = r.branch || ""; } catch (e) { /* endpoint optional */ }
-  if (S.chat && S.chat.workspace === path) setTop(S.chat);
+  if (S.chat && S.chat.workspace === path) setTop(S.chat); else syncTray();
 }
 
 /* ================= start screen ================= */
 const SUGGEST = {
-  code: ["Explain how this project is structured", "Find and fix the failing tests", "Add input validation to the signup form", "Write a README for this repo"],
-  computer: ["What’s my battery and the weather in Karachi?", "Find my project report PDF and summarize it", "Open WhatsApp and send hi to Ali", "Play lofi on YouTube"],
+  code: [["bug", "Find and fix the failing tests in this repo."], ["doc", "Explain how this project is structured, file by file."], ["bolt", "Add input validation to the signup form, with tests."]],
+  computer: [["sun", "What’s my battery and the weather in Karachi?"], ["doc", "Find my project report PDF and summarize it."], ["music", "Play lofi on YouTube and set the volume to 30."]],
 };
 async function startScreen() {
   S.chatId = null; S.chat = null; S.ctxUsed = 0;
   $("thread").hidden = true; $("thread").innerHTML = "";
   $("start").hidden = false;
+  $("view-session").classList.add("is-start");
   setTop(null); updateCtx(); renderSessions(); syncMode();
-  renderStart();
+  renderStart(); setSending();
   loadRecentWs();
   setTimeout(() => input.focus(), 30);
 }
 function renderStart() {
-  const st = $("start");
-  const code = S.mode === "code";
-  const ws = S.workspace;
-  st.innerHTML = `<h1>What should we work on?</h1>
-    <p class="lead">Monday runs ${esc(prettyModel(S.model.model))} on this Mac. Pick how it should work.</p>
-    <div class="modes" role="radiogroup" aria-label="Session type">
-      <button class="mode-card" role="radio" data-mode="code" aria-checked="${code}"><span class="mi">${icon("code")}</span><span><b>Code</b><span>Work in a project folder: read and search files, make edits you can review, run commands and tests.</span></span></button>
-      <button class="mode-card" role="radio" data-mode="computer" aria-checked="${!code}"><span class="mi">${icon("monitor")}</span><span><b>Computer</b><span>Do things on your Mac: apps, web, files, reminders and notes, or let it click and type on screen.</span></span></button>
-    </div>
-    ${code ? `<div class="wsbox">
-      <div class="wh">${icon("folder")}${ws ? `<span>Project</span><b>${esc(base(ws.path))}</b><span class="mono muted">${esc(tilde(ws.path))}</span>` : "<span>Choose a project folder</span>"}<span class="grow"></span>
-        <button class="btn sm" id="ws-open">${icon("folder")}Open folder…</button></div>
-      <form class="wpath" id="ws-form"><input id="ws-path" placeholder="/Users/you/project" aria-label="Project folder path" value="${ws ? esc(ws.path) : ""}"><button class="btn sm" type="submit">Use</button></form>
-      <div class="wslist" id="ws-list" role="radiogroup" aria-label="Recent projects"></div></div>` : ""}
-    <div class="suggest" aria-label="Suggestions">${SUGGEST[S.mode].map((s) => `<button data-suggest="${esc(s)}">${esc(s)}</button>`).join("")}</div>
-    <div class="voice-card"><span class="mi">${icon("wave")}</span><span class="grow"><b>Voice agent</b><span>Hands-free Monday with “Hey Monday”, the on-screen orb and spoken replies. Runs separately from Studio.</span></span>
-      ${S.prefs.voice_mode ? `<button class="btn" id="voice-stop">Stop voice agent</button>` : `<button class="btn" id="voice-go" ${S.voice ? "" : "disabled title=\"Monday was started without voice\""}>${icon("mic")}Continue with voice agent</button>`}</div>`;
-  if (code) renderWsList();
+  const code = S.mode === "code", ws = S.workspace;
+  $("start").innerHTML = `<div class="mark" aria-hidden="true">${icon("mark")}</div>
+    ${code ? `<h1>Let’s build</h1><button class="sub" id="start-proj" aria-haspopup="menu">${esc(ws ? base(ws.path) : "Choose a project")}${icon("chev")}</button>`
+           : `<h1>What should we work on?</h1>`}`;
+  $("suggest").innerHTML = SUGGEST[S.mode].map(([ic, t]) => `<button type="button" class="sugg" data-suggest="${esc(t)}">${icon(ic)}<span>${esc(t)}</span></button>`).join("");
+  syncTray();
 }
-function renderWsList() {
-  const box = $("ws-list");
-  if (!box) return;
-  const list = S.recentWs.length ? S.recentWs : [];
-  box.innerHTML = list.length ? list.map((w) => `<button class="wsitem" role="radio" data-ws="${esc(w.path)}" aria-checked="${S.workspace && S.workspace.path === w.path}">
-      ${icon("folder")}<span class="nm">${esc(w.name || base(w.path))}</span><span class="pa">${esc(tilde(w.path))}</span>${w.branch ? `<span class="br">${icon("branch")}${esc(w.branch)}</span>` : ""}</button>`).join("")
-    : `<div class="ws-empty">No recent projects yet. Open a folder to start.</div>`;
+/* the tray under the composer: project and branch (Code), and the voice agent */
+function syncTray() {
+  const mode = S.chatId ? (S.chat && S.chat.mode) || S.mode : S.mode;
+  const path = S.chatId ? S.chat && S.chat.workspace : S.workspace && S.workspace.path;
+  const code = mode === "code";
+  $("proj-pop").hidden = !code;
+  $("proj-text").textContent = path ? base(path) : "Choose project";
+  const br = path ? S.branches[path] : "";
+  if (code && path && br === undefined) loadBranch(path);
+  $("branch-chip").hidden = !(code && br);
+  $("branch-text").textContent = br || "";
+  const on = !!(S.voice && S.prefs.voice_mode);
+  $("voice-btn").classList.toggle("on", on);
+  $("voice-text").textContent = on ? "Voice agent on · Stop" : "Voice agent";
+  $("voice-btn").disabled = !S.voice;
+  $("voice-btn").title = S.voice ? (on ? "Stop the hands-free voice agent" : "Start hands-free Monday: tap your talk key and just talk, with the on-screen orb and spoken replies") : "Monday was started without voice";
 }
 async function loadRecentWs() {
   let recent = [];
@@ -330,8 +369,10 @@ async function loadRecentWs() {
     recent = S.chats.filter((c) => c.mode === "code" && c.workspace && !seen.has(c.workspace) && seen.add(c.workspace)).map((c) => ({ path: c.workspace, name: base(c.workspace) }));
   }
   S.recentWs = recent;
+  recent.forEach((w) => { if (w.branch !== undefined) S.branches[w.path] = w.branch || ""; });
   if (!S.workspace && recent.length) S.workspace = recent[0];
-  if (S.view === "session" && !S.chatId) { if (S.mode === "code") renderStart(); }
+  if (S.view === "session" && !S.chatId) renderStart();
+  renderSessions();
 }
 async function chooseWorkspace(path) {
   path = path.trim();
@@ -340,39 +381,54 @@ async function chooseWorkspace(path) {
     const r = await api("/api/workspaces/check", { method: "POST", body: { path } });
     if (!r.ok) return toast(r.error || "That folder doesn’t exist", "error");
     S.workspace = { path: r.path, name: r.name, branch: r.branch };
-  } catch (e) {
-    if (e.status !== 404 && e.status !== 405) return toast(e.message, "error");
-    S.workspace = { path, name: base(path) }; // older server: accept the path as typed
-  }
+    S.branches[r.path] = r.branch || "";
+  } catch (e) { return toast(e.message, "error"); }
   if (!S.recentWs.some((w) => w.path === S.workspace.path)) S.recentWs.unshift(S.workspace);
-  renderStart(); input.focus();
+  if (S.chatId && S.chat && S.chat.mode === "code") {  // move this session to the chosen project
+    S.chat.workspace = S.workspace.path; setTop(S.chat);
+    api(`/api/chats/${S.chatId}`, { method: "PATCH", body: { workspace: S.workspace.path } }).catch(() => {});
+    const c = S.chats.find((x) => x.id === S.chatId); if (c) c.workspace = S.workspace.path;
+  } else if (S.mode !== "code") { S.mode = "code"; syncMode(); }
+  if (!S.chatId) renderStart();
+  syncTray(); renderSessions(); input.focus();
 }
-$("start").addEventListener("click", async (e) => {
-  const m = e.target.closest("[data-mode]");
-  if (m) { setMode(m.dataset.mode); return; }
+async function pickFolder() {
+  closeMenus();
+  try {
+    const r = await api("/api/workspaces/pick", { method: "POST" });
+    if (r && r.path) chooseWorkspace(r.path);
+  } catch (er) { toast(er.status === 404 ? "The folder picker isn’t available here. Type the path instead." : er.message, "error"); }
+}
+function projectMenu(btn) {
+  const menu = $("proj-menu");
+  if (!toggleMenu(btn.id === "start-proj" ? $("proj-btn") : btn, menu)) return;
+  const cur = S.chatId ? S.chat && S.chat.workspace : S.workspace && S.workspace.path;
+  menu.innerHTML = `<div class="mh">Projects</div>` +
+    (S.recentWs.length ? S.recentWs.map((w) => `<button role="menuitemradio" data-ws="${esc(w.path)}" aria-checked="${w.path === cur}"><b>${esc(w.name || base(w.path))}</b><span class="mono">${esc(tilde(w.path))}</span></button>`).join("") : `<div class="mh">No projects yet</div>`) +
+    `<hr><button class="row-btn" data-pick>${icon("folder")}Open folder…</button>
+     <form id="ws-form"><input id="ws-path" placeholder="/Users/you/project" aria-label="Project folder path"><button class="btn sm" type="submit">Use</button></form>`;
+}
+$("proj-btn").onclick = () => projectMenu($("proj-btn"));
+$("proj-menu").addEventListener("click", (e) => {
   const w = e.target.closest("[data-ws]");
-  if (w) { const ws = S.recentWs.find((x) => x.path === w.dataset.ws); S.workspace = ws; renderStart(); input.focus(); return; }
-  if (e.target.closest("#ws-open")) {
-    try {
-      const r = await api("/api/workspaces/pick", { method: "POST" });
-      if (r && r.path) chooseWorkspace(r.path);
-    } catch (er) { toast(er.status === 404 ? "The folder picker isn’t available here. Type the folder path instead." : er.message, "error"); $("ws-path")?.focus(); }
-    return;
-  }
-  const s = e.target.closest("[data-suggest]");
-  if (s) { input.value = s.dataset.suggest; autosize(); input.focus(); return; }
-  if (e.target.closest("#voice-go")) return voiceAgent(true);
-  if (e.target.closest("#voice-stop")) return voiceAgent(false);
+  if (w) { closeMenus(); chooseWorkspace(w.dataset.ws); return; }
+  if (e.target.closest("[data-pick]")) pickFolder();
 });
-$("start").addEventListener("submit", (e) => { if (e.target.id === "ws-form") { e.preventDefault(); chooseWorkspace($("ws-path").value); } });
+$("proj-menu").addEventListener("submit", (e) => { e.preventDefault(); closeMenus(); chooseWorkspace($("ws-path").value); });
+$("start").addEventListener("click", (e) => { if (e.target.closest("#start-proj")) { e.stopPropagation(); projectMenu($("start-proj")); } });
+$("suggest").addEventListener("click", (e) => {
+  const s = e.target.closest("[data-suggest]");
+  if (s) { input.value = s.dataset.suggest; autosize(); input.focus(); }
+});
+$("voice-btn").onclick = () => voiceAgent(!(S.prefs.voice_mode));
 
 async function voiceAgent(on) {
   try {
     const r = await api("/api/voice-agent", { method: "POST", body: { on } });
     S.prefs.voice_mode = !!r.voice_mode; applyPrefs({});
-    toast(on ? (r.hud ? "Voice agent is on. Say “Hey Monday”." : "Voice agent is listening. Say “Hey Monday”.") : "Voice agent stopped");
+    toast(on ? "Voice agent is on. Tap your talk key (right Shift) and just talk; tap it again to stop." : "Voice agent stopped");
   } catch (e) { toast(e.message, "error"); }
-  if (S.view === "session" && !S.chatId) renderStart();
+  syncTray();
   if (S.view === "settings" && window.PAGES) window.PAGES.settings();
 }
 $("voice-pill").onclick = () => voiceAgent(false);
@@ -380,8 +436,8 @@ $("voice-pill").onclick = () => voiceAgent(false);
 /* ================= mode switch ================= */
 function syncMode() {
   document.querySelectorAll("#mode-seg [data-mode]").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.mode === S.mode)));
-  input.placeholder = S.mode === "code" ? "Ask Monday to build, fix or explain something…  @ to mention a file" : "Ask Monday to do something on your Mac…";
-  $("comp-hint").textContent = "";
+  input.placeholder = S.mode === "code" ? "Ask Monday anything, @ to add files" : "Ask Monday to do something on your Mac";
+  syncTray();
 }
 async function setMode(mode) {
   if (S.mode === mode) return;
@@ -389,7 +445,7 @@ async function setMode(mode) {
   if (!S.chatId) { renderStart(); return; }
   if (mode === "code" && !(S.chat && S.chat.workspace)) {
     const ws = S.workspace || S.recentWs[0];
-    if (!ws) { toast("Open a project folder first: start a new Code session.", "error"); S.mode = "computer"; syncMode(); return; }
+    if (!ws) { toast("Choose a project folder first.", "error"); S.mode = "computer"; syncMode(); return; }
     S.chat.workspace = ws.path;
   }
   S.chat.mode = mode;
@@ -403,7 +459,7 @@ $("mode-seg").addEventListener("click", (e) => { const b = e.target.closest("[da
 async function openChat(id) {
   if (S.chatId === id && S.chat && !$("thread").hidden) return;
   S.chatId = id;
-  $("start").hidden = true; $("thread").hidden = false;
+  $("start").hidden = true; $("thread").hidden = false; $("view-session").classList.remove("is-start");
   renderSessions();
   let chat;
   try { chat = await api(`/api/chats/${id}`); } catch (e) {
@@ -415,7 +471,7 @@ async function openChat(id) {
 function renderChat(chat) {
   S.chat = chat;
   S.mode = chat.mode || "computer";
-  if (chat.mode === "code" && chat.workspace) S.workspace = { path: chat.workspace, name: base(chat.workspace) };
+  if (chat.mode === "code" && chat.workspace && !String(chat.id).startsWith("demo-")) S.workspace = { path: chat.workspace, name: base(chat.workspace) };
   syncMode(); setTop(chat);
   const th = $("thread");
   th.innerHTML = "";
@@ -731,6 +787,7 @@ function onChatCreated(m) {
     S.chatId = m.id;
     S.chat = { id: m.id, title: m.title, mode: m.mode || S.mode, workspace: m.workspace || (S.workspace && S.workspace.path) || "", messages: [] };
     $("start").hidden = true; $("thread").hidden = false; $("thread").innerHTML = "";
+    $("view-session").classList.remove("is-start");
     setTop(S.chat);
     history.replaceState(null, "", `#/s/${m.id}`);
   }
@@ -824,7 +881,7 @@ function submit() {
   if (isRunning() && !input.value.trim() && !S.attachments.length) return stopRun();
   const text = input.value.trim();
   if (!text && !S.attachments.length) return;
-  if (!S.chatId && S.mode === "code" && !S.workspace) { toast("Choose a project folder for this Code session first.", "error"); $("ws-path")?.focus(); return; }
+  if (!S.chatId && S.mode === "code" && !S.workspace) { toast("Choose a project folder first.", "error"); projectMenu($("proj-btn")); return; }
   const mode = S.chatId ? (S.chat && S.chat.mode) || S.mode : S.mode;
   const workspace = mode === "code" ? (S.chat && S.chat.workspace) || (S.workspace && S.workspace.path) : undefined;
   const options = { mode, approve: S.prefs.approve, search: S.prefs.search !== false, think: !!S.prefs.think };
@@ -838,6 +895,17 @@ input.addEventListener("keydown", (e) => {
   if (mention.open && mentionKey(e)) return;
   if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); }
 });
+
+/* hold the mic to dictate: the words land in the message box (Whisper on this Mac) */
+let dictating = false;
+function dictate(on) {
+  if (on === dictating) return;
+  dictating = on; $("mic-btn").classList.toggle("rec", on);
+  send({ type: "ptt", down: on, chat_id: S.chatId });
+}
+$("mic-btn").addEventListener("pointerdown", (e) => { e.preventDefault(); $("mic-btn").setPointerCapture(e.pointerId); dictate(true); });
+$("mic-btn").addEventListener("pointerup", () => dictate(false));
+$("mic-btn").addEventListener("pointercancel", () => dictate(false));
 
 /* attachments */
 $("attach-btn").onclick = () => $("file-input").click();
@@ -980,7 +1048,7 @@ const Demo = {
       ? { id, title: "Add a /health endpoint", mode: "code", workspace: "/Users/you/Developer/shop-api", messages: [] }
       : { id, title: "Battery, weather and a message", mode: "computer", workspace: "", messages: [] };
     S.branches[chat.workspace] = "main";
-    $("start").hidden = true; $("thread").hidden = false;
+    $("start").hidden = true; $("thread").hidden = false; $("view-session").classList.remove("is-start");
     renderChat(chat);
     const text = kind === "code" ? "Add a /health endpoint that returns the app version, with a test." : "What's my battery and the weather in Karachi? Then open WhatsApp and send hi to Ali.";
     onUserMessage({ chat_id: id, message: { role: "user", content: text } });
